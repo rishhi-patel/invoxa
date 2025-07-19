@@ -1,9 +1,11 @@
-- **notification-service**: Sends emails and generates PDF invoices
+# **INVOXA – Notification Service**  
+Sends emails and generates pixel-perfect PDF invoices — effortlessly and reliably.
+
 
 ## Project Structure
 ```
 invoxa/
-├── microservices/
+├── microservic
 │   ├── auth-service/
 │   ├── client-service/
 │   ├── invoice-service/

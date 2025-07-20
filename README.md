@@ -1,8 +1,9 @@
-# **INVOXA – Notification Service**  
+# **INVOXA – Notification Service**
+
 Sends emails and generates pixel-perfect PDF invoices — effortlessly and reliably.
 
-
 ## Project Structure
+
 ```
 invoxa/
 ├── microservic
@@ -11,24 +12,28 @@ invoxa/
 │   ├── invoice-service/
 │   ├── payment-service/
 │   └── notification-service/
-├── frontend/                # Frontend (UI from v0.dev)
+├── frontend/                # Frontend
 ├── infra/                   # Terraform/CDK Infrastructure setup
 └── docker-compose.yaml      # Local development composition
 ```
 
 ## Prerequisites
+
 - Docker
 - Node.js and npm (for Node-based services)
 - Python 3 and pip (for Flask services)
 
 ## Running Locally
+
 1. Clone this repo and navigate into the project folder.
 2. Build and run services using Docker Compose:
+
 ```bash
 docker-compose up --build
 ```
 
 ## Future Enhancements
+
 - Add real authentication (JWT, OAuth)
 - Integrate MongoDB for persistence
 - Setup GitHub Actions for CI/CD
@@ -42,6 +47,7 @@ Built with ❤️ by **EXOcode Labs**
 - **notification-service**: Sends email notifications with attached invoices
 
 ## Technologies Used
+
 - Node.js (Express), Python (Flask)
 - Docker & Docker Compose
 - Puppeteer (planned for PDF generation)
@@ -57,6 +63,7 @@ docker-compose up --build
 ```
 
 Each service will be available on the following ports:
+
 - auth-service: `http://localhost:3001`
 - client-service: `http://localhost:5001`
 - invoice-service: `http://localhost:3002`
@@ -80,6 +87,7 @@ invoxa/
 ```
 
 ## Maintainer
+
 This project is developed and maintained by **Rishikumar Patel** under **EXOcode Labs**.
 
 ---

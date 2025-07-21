@@ -1,1 +1,60 @@
+# node and JavaScript related files to ignore
 node_modules
+dist
+build
+.env
+.env.*
+coverage
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.idea
+.vscode
+.DS_Store
+*.tsbuildinfo
+test-results/
+
+
+# flask and Python related files to ignore
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.sqlite3
+instance/
+*.db
+*.egg-info/
+*.egg
+*.bak
+*.swp
+*.swo
+
+# Flask specific
+.env
+*.env
+*.flaskenv
+
+# pytest
+.cache/
+.pytest_cache/
+htmlcov/
+nosetests.xml
+coverage.xml
+*.cover
+*.coverage
+*.tox/
+
+
+# Terraform related files to ignore
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl
+terraform.tfvars.json

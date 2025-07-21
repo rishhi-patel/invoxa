@@ -1,20 +1,17 @@
-# Use official Python image
-FROM python:3.11-slim
+# Stage 1: Build
+FROM node:20-alpine AS builder
 
-# Set working directory
 WORKDIR /app
-
-# Copy requirements file
-COPY requirements.txt .
-
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
 COPY . .
+RUN npm install
+RUN npm run build
 
-# Set environment variable for Flask
-ENV FLASK_APP=app.py
+# Stage 2: Runtime
+FROM node:20-alpine
 
-# Run the Flask app
-CMD ["flask", "run", "--host=0.0.0.0"]
+WORKDIR /app
+COPY --from=builder /app/dist ./dist
+COPY package*.json ./
+RUN npm install --omit=dev
+
+CMD ["node", "dist/index.js"]

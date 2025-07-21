@@ -1,0 +1,35 @@
+### Health check
+GET http://localhost:3001/
+
+### Create a new client
+POST http://localhost:3001/api/clients
+Content-Type: application/json
+
+{
+  "name": "Rishhi Patel",
+  "email": "rishhi@exocodelabs.dev",
+  "company": "EXOcode Labs",
+  "phone": "+1-555-123-4567"
+}
+
+### Get all clients
+GET http://localhost:3001/api/clients
+
+@client_id = 171438b5-57d3-455e-98b4-59734d013828
+
+### Get a single client by ID
+GET http://localhost:3001/api/clients/{{client_id}}
+
+### Update a client
+PUT http://localhost:3001/api/clients/{{client_id}}
+Content-Type: application/json
+
+{
+  "name": "Rishhi Exo",
+  "email": "founder@exocodelabs.dev",
+  "company": "EXOcode Studios",
+  "phone": "+1-555-765-4321"
+}
+
+### Delete a client
+DELETE http://localhost:3001/api/clients/{{client_id}}

@@ -1,96 +1,56 @@
-import { ddbDocClient } from "../utils/dynamo"
-import {
-  PutCommand,
-  GetCommand,
-  UpdateCommand,
-  DeleteCommand,
-  ScanCommand,
-} from "@aws-sdk/lib-dynamodb"
-import { Client } from "../types/client"
-import { logger } from "../utils/logger" // 👈 import the logger
+import { ClientModel } from "../models/client.model"
 
-const TABLE_NAME = "invoxa_clients"
-
-// ✅ Create a new client
-export const createClient = async (client: Client) => {
+export const createClient = async (data: any) => {
   try {
-    const command = new PutCommand({
-      TableName: TABLE_NAME,
-      Item: client,
-    })
-    logger.info(`Creating client: ${client.name}`)
-    return await ddbDocClient.send(command)
-  } catch (err) {
-    logger.error("Failed to create client", err)
-    throw err
+    const client = new ClientModel(data)
+    return await client.save()
+  } catch (error) {
+    throw new Error(`Failed to create client: ${error}`)
   }
 }
 
-// ✅ Get all clients
 export const getAllClients = async () => {
   try {
-    logger.info("Fetching all clients")
-    const command = new ScanCommand({ TableName: TABLE_NAME })
-    return await ddbDocClient.send(command)
-  } catch (err) {
-    logger.error("Failed to fetch clients", err)
-    throw err
+    return await ClientModel.find()
+  } catch (error) {
+    throw new Error(`Failed to fetch clients: ${error}`)
   }
 }
 
-// ✅ Get a single client by ID
 export const getClientById = async (id: string) => {
   try {
-    logger.info(`Fetching client with ID: ${id}`)
-    const command = new GetCommand({
-      TableName: TABLE_NAME,
-      Key: { id },
-    })
-    return await ddbDocClient.send(command)
-  } catch (err) {
-    logger.error(`Failed to fetch client with ID: ${id}`, err)
-    throw err
+    const client = await ClientModel.findById(id)
+    if (!client) {
+      throw new Error("Client not found")
+    }
+    return client
+  } catch (error) {
+    throw new Error(`Failed to fetch client: ${error}`)
   }
 }
 
-// ✅ Update a client by ID
-export const updateClient = async (id: string, updates: Partial<Client>) => {
+export const updateClient = async (id: string, updates: any) => {
   try {
-    logger.info(`Updating client with ID: ${id}`)
-    const command = new UpdateCommand({
-      TableName: TABLE_NAME,
-      Key: { id },
-      UpdateExpression:
-        "set #name = :name, email = :email, company = :company, phone = :phone",
-      ExpressionAttributeNames: {
-        "#name": "name",
-      },
-      ExpressionAttributeValues: {
-        ":name": updates.name,
-        ":email": updates.email,
-        ":company": updates.company,
-        ":phone": updates.phone,
-      },
-      ReturnValues: "ALL_NEW",
+    const updatedClient = await ClientModel.findByIdAndUpdate(id, updates, {
+      new: true,
     })
-    return await ddbDocClient.send(command)
-  } catch (err) {
-    logger.error(`Failed to update client with ID: ${id}`, err)
-    throw err
+    if (!updatedClient) {
+      throw new Error("Client not found")
+    }
+    return updatedClient
+  } catch (error) {
+    throw new Error(`Failed to update client: ${error}`)
   }
 }
 
-// ✅ Delete a client by ID
 export const deleteClient = async (id: string) => {
   try {
-    logger.info(`Deleting client with ID: ${id}`)
-    const command = new DeleteCommand({
-      TableName: TABLE_NAME,
-      Key: { id },
-    })
-    return await ddbDocClient.send(command)
-  } catch (err) {
-    logger.error(`Failed to delete client with ID: ${id}`, err)
-    throw err
+    const deletedClient = await ClientModel.findByIdAndDelete(id)
+    if (!deletedClient) {
+      throw new Error("Client not found")
+    }
+    return deletedClient
+  } catch (error) {
+    throw new Error(`Failed to delete client: ${error}`)
   }
 }

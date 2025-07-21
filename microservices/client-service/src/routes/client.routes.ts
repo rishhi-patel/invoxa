@@ -1,62 +1,50 @@
-import express from "express"
-import { v4 as uuidv4 } from "uuid"
-import {
-  createClient,
-  getAllClients,
-  getClientById,
-  updateClient,
-  deleteClient,
-} from "../services/client.service"
+import { Router } from "express"
+import * as clientService from "../services/client.service"
 
-const router = express.Router()
+const router = Router()
 
-// Create new client
 router.post("/", async (req, res) => {
-  const client = { id: uuidv4(), ...req.body }
   try {
-    await createClient(client)
-    res.status(201).json(client)
+    const newClient = await clientService.createClient(req.body)
+    res.status(201).json(newClient)
   } catch (err) {
+    console.error(err)
     res.status(500).json({ error: "Failed to create client" })
   }
 })
 
-// Get all clients
 router.get("/", async (_req, res) => {
   try {
-    const data = await getAllClients()
-    res.json(data.Items)
+    const clients = await clientService.getAllClients()
+    res.json(clients)
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch clients" })
   }
 })
 
-// Get client by ID
 router.get("/:id", async (req, res) => {
   try {
-    const data = await getClientById(req.params.id)
-    if (!data.Item) return res.status(404).json({ error: "Not found" })
-    res.json(data.Item)
+    const client = await clientService.getClientById(req.params.id)
+    if (!client) return res.status(404).json({ error: "Client not found" })
+    res.json(client)
   } catch (err) {
-    res.status(500).json({ error: "Failed to get client" })
+    res.status(500).json({ error: "Failed to fetch client" })
   }
 })
 
-// Update client
 router.put("/:id", async (req, res) => {
   try {
-    const data = await updateClient(req.params.id, req.body)
-    res.json(data.Attributes)
+    const updated = await clientService.updateClient(req.params.id, req.body)
+    res.json(updated)
   } catch (err) {
     res.status(500).json({ error: "Failed to update client" })
   }
 })
 
-// Delete client
 router.delete("/:id", async (req, res) => {
   try {
-    await deleteClient(req.params.id)
-    res.json({ success: true })
+    await clientService.deleteClient(req.params.id)
+    res.status(204).send()
   } catch (err) {
     res.status(500).json({ error: "Failed to delete client" })
   }

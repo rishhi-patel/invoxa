@@ -1,0 +1,40 @@
+name: Test Client Service
+
+on:
+  pull_request:
+    paths:
+      - "microservices/client-service/**"
+    branches:
+      - main
+      - dev
+
+jobs:
+  test:
+    name: Run Jest Tests
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: microservices/client-service
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "yarn"
+
+      - name: 📦 Install dependencies
+        run: yarn install
+
+      - name: 🧪 Run tests with coverage
+        run: yarn test --coverage
+
+      - name: 📊 Upload test coverage (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: client-service-coverage
+          path: microservices/client-service/coverage/

@@ -22,10 +22,6 @@ afterEach(async () => {
   await ClientModel.deleteMany({})
 })
 
-jest.spyOn(ClientModel.prototype, "save").mockImplementationOnce(() => {
-  throw new Error("Mock error")
-})
-
 describe("Client API", () => {
   it("should hit logger middleware", async () => {
     const res = await request(app).get("/logger-test")
@@ -39,6 +35,7 @@ describe("Client API", () => {
       phone: "1234567890",
       company: "Exo Code Labs",
     })
+
     expect(res.status).toBe(201)
     expect(res.body.name).toBe("Rishhi")
   })
@@ -122,7 +119,6 @@ describe("Client API", () => {
   it("should return 500 on client creation error", async () => {
     const res = await request(app).post("/api/clients").send({
       name: "Test",
-      email: "fail@example.com",
     })
     expect(res.status).toBe(500)
   })

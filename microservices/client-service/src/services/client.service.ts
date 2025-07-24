@@ -1,56 +1,61 @@
+import { Request, Response } from "express"
 import { ClientModel } from "../models/client.model"
 
-export const createClient = async (data: any) => {
+export const createClient = async (req: Request, res: Response) => {
   try {
-    const client = new ClientModel(data)
-    return await client.save()
+    const client = new ClientModel(req.body)
+    const savedClient = await client.save()
+    res.status(201).json(savedClient)
   } catch (error) {
-    throw new Error(`Failed to create client: ${error}`)
+    res.status(500).json({ message: `Failed to create client: ${error}` })
   }
 }
 
-export const getAllClients = async () => {
+export const getAllClients = async (_req: Request, res: Response) => {
   try {
-    return await ClientModel.find()
+    const clients = await ClientModel.find()
+    res.json(clients)
   } catch (error) {
-    throw new Error(`Failed to fetch clients: ${error}`)
+    res.status(500).json({ message: `Failed to fetch clients: ${error}` })
   }
 }
 
-export const getClientById = async (id: string) => {
+export const getClientById = async (req: Request, res: Response) => {
   try {
-    const client = await ClientModel.findById(id)
+    const client = await ClientModel.findById(req.params.id)
     if (!client) {
-      throw new Error("Client not found")
+      return res.status(404).json({ message: "Client not found" })
     }
-    return client
+    res.json(client)
   } catch (error) {
-    throw new Error(`Failed to fetch client: ${error}`)
+    res.status(500).json({ message: `Failed to fetch client: ${error}` })
   }
 }
 
-export const updateClient = async (id: string, updates: any) => {
+export const updateClient = async (req: Request, res: Response) => {
   try {
-    const updatedClient = await ClientModel.findByIdAndUpdate(id, updates, {
-      new: true,
-    })
+    const updatedClient = await ClientModel.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    )
     if (!updatedClient) {
-      throw new Error("Client not found")
+      return res.status(404).json({ message: "Client not found" })
     }
-    return updatedClient
+    res.json(updatedClient)
   } catch (error) {
-    throw new Error(`Failed to update client: ${error}`)
+    res.status(500).json({ message: `Failed to update client: ${error}` })
   }
 }
 
-export const deleteClient = async (id: string) => {
+export const deleteClient = async (req: Request, res: Response) => {
   try {
-    const deletedClient = await ClientModel.findByIdAndDelete(id)
+    const deletedClient = await ClientModel.findByIdAndDelete(req.params.id)
     if (!deletedClient) {
-      throw new Error("Client not found")
+      return res.status(404).json({ message: "Client not found" })
     }
-    return deletedClient
+    return res.status(204).send()
   } catch (error) {
-    throw new Error(`Failed to delete client: ${error}`)
+    res.status(500).json({ message: `Failed to delete client: ${error}` })
   }
 }

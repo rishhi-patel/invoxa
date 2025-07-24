@@ -17,8 +17,12 @@ app.use(errorHandler)
 app.get("/", (_req, res) => res.send("Client Service is running 🚀"))
 app.use("/api/clients", clientRoutes)
 
-connectToDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`🚀 Client service running on http://localhost:${PORT}`)
+if (process.env.NODE_ENV !== "test") {
+  connectToDB().then(() => {
+    app.listen(PORT, () => {
+      console.log(`🚀 Client service running on http://localhost:${PORT}`)
+    })
   })
-})
+}
+
+export default app

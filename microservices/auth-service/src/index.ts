@@ -1,12 +1,25 @@
-import express, { Request, Response } from "express"
+import express from "express"
+import dotenv from "dotenv"
+import helmet from "helmet"
+import cors from "cors"
+import mongoose from "mongoose"
+import authRoutes from "./routes/auth.routes"
+
+dotenv.config()
 
 const app = express()
-const PORT = process.env.PORT || 3000
+app.use(express.json())
+app.use(cors())
+app.use(helmet())
 
-app.get("/", (_req: Request, res: Response) => {
-  res.send("Hello from Auth Service!")
-})
+app.use("/api/auth", authRoutes)
 
-app.listen(PORT, () => {
-  console.log(`Service running on port ${PORT}`)
-})
+mongoose
+  .connect(process.env.MONGO_URI || "mongodb://localhost:27017/auth")
+  .then(() => {
+    console.log("MongoDB connected")
+    app.listen(3002, () => console.log("Auth service running on port 3002"))
+  })
+  .catch((err) => console.error("MongoDB connection error:", err))
+
+export default app

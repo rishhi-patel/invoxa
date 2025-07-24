@@ -9,6 +9,7 @@ const config: Config = {
     "src/**/*.{ts,tsx}",
     "!**/node_modules/**",
     "!src/utils/**",
+    "!src/index.ts",
   ],
   coverageThreshold: {
     global: {

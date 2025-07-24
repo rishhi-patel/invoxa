@@ -15,6 +15,11 @@ app.use("/api/clients", clientRoutes)
 app.use(errorHandler)
 
 app.get("/", (_req, res) => res.send("Client Service is running 🚀"))
+app.get("/logger-test", (req, res) => {
+  console.log("Triggering logger")
+  res.status(200).send("OK")
+})
+
 app.use("/api/clients", clientRoutes)
 
 if (process.env.NODE_ENV !== "test") {

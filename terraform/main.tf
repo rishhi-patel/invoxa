@@ -1,11 +1,11 @@
 ## === root/main.tf ===
 
-module "backend" {
-  source          = "./modules/backend"
-  bucket_name     = var.bucket_name
-  lock_table_name = var.lock_table_name
-  tags            = var.tags
-}
+#module "backend" {
+#  source          = "./modules/backend"
+#  bucket_name     = var.bucket_name
+#  lock_table_name = var.lock_table_name
+#  tags            = var.tags
+#}
 
 module "vpc" {
   source              = "./modules/vpc"

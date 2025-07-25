@@ -347,7 +347,7 @@ pipeline {
 
                    if (params.InvoxaAccount == 'invoxa-dev') {
 
-                       def role1 = assumeRole("arn:aws:iam::817998750852:role/RINX_DEVAWS_JENKINS_ADM", "jenkins-dev-adm-session")
+                       def role1 = assumeRole("arn:aws:iam::857736875915:role/RINX_DEVAWS_JENKINS_ADM", "jenkins-dev-adm-session")
 
                        env.AWS_ACCESS_KEY_ID = role1.accessKey
 
@@ -360,7 +360,7 @@ pipeline {
                        //CTRGB ASSUME ROLE
                      } else if (params.InvoxaAccount == 'invoxa-prd') {
 
-                       def role1 = assumeRole("arn:aws:iam::817998750852:role/RINX_PRDAWS_JENKINS_ADM", "jenkins-prd-adm-session")
+                       def role1 = assumeRole("arn:aws:iam::857736875915:role/RINX_PRDAWS_JENKINS_ADM", "jenkins-prd-adm-session")
 
                        env.AWS_ACCESS_KEY_ID = role1.accessKey
 

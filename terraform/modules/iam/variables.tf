@@ -1,4 +1,4 @@
-## === modules/ecs/variables.tf ===
+## === modules/iam/variables.tf ===
 
 variable "prefix" {
   description = "Resource name prefix"
@@ -6,6 +6,6 @@ variable "prefix" {
 }
 
 variable "tags" {
-  description = "Common tags for resources"
+  description = "Common resource tags"
   type        = map(string)
 }

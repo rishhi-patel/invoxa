@@ -1,4 +1,7 @@
-## === modules/ecs/variables.tf ===
+variable "vpc_id" {
+  description = "VPC ID"
+  type        = string
+}
 
 variable "prefix" {
   description = "Resource name prefix"
@@ -6,6 +9,6 @@ variable "prefix" {
 }
 
 variable "tags" {
-  description = "Common tags for resources"
+  description = "Common tags"
   type        = map(string)
 }

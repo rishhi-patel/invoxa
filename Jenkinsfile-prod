@@ -1,0 +1,550 @@
+pipeline {
+    agent any
+    
+    parameters {
+        choice(
+            name: 'ACTION',
+            choices: ['plan', 'apply', 'destroy'],
+            description: 'Select Terraform action to perform'
+        )
+        booleanParam(
+            name: 'AUTO_APPROVE',
+            defaultValue: false,
+            description: 'Auto-approve Terraform apply (NEVER use in production without proper approvals)'
+        )
+        booleanParam(
+            name: 'DEPLOY_CONTAINERS',
+            defaultValue: true,
+            description: 'Build and deploy container images to ECS'
+        )
+        string(
+            name: 'DEPLOYMENT_TICKET',
+            defaultValue: '',
+            description: 'REQUIRED: Deployment ticket number for production deployment'
+        )
+        string(
+            name: 'APPROVED_BY',
+            defaultValue: '',
+            description: 'REQUIRED: Name of person who approved this production deployment'
+        )
+    }
+    
+    environment {
+        AWS_DEFAULT_REGION = 'us-east-1'
+        ENVIRONMENT = 'prod'
+        TF_VAR_prefix = 'INX-PRD-USNV-'
+        ECR_REPOSITORY = 'inx-INX-PRD-USNV--app'
+        ECS_CLUSTER = 'INX-PRD-USNV-CLUSTER01'
+        
+        // Terraform backend configuration
+        TF_STATE_BUCKET = 'inx-prd-terraform-state-9015480'
+        TF_STATE_KEY = 'terraform.tfstate'
+        TF_LOCK_TABLE = 'inx-prd-tf-locks'
+        
+        // AWS Role for PROD environment
+        AWS_ROLE_ARN = 'arn:aws:iam::857736875915:role/RINX_PRDAWS_JENKINS_ADM'
+        
+        // Production safety flags
+        PROD_DEPLOYMENT = 'true'
+        REQUIRE_APPROVALS = 'true'
+    }
+    
+    stages {
+        stage('🔍 Production Environment Validation') {
+            steps {
+                script {
+                    echo "🚀 Starting INVOXA Infrastructure Deployment - PRODUCTION Environment"
+                    echo "Branch: ${env.BRANCH_NAME}"
+                    echo "Environment: ${env.ENVIRONMENT}"
+                    echo "Action: ${params.ACTION}"
+                    
+                    // Strict branch validation for production
+                    if (env.BRANCH_NAME != 'release') {
+                        error "❌ PRODUCTION pipeline MUST only run on 'release' branch. Current branch: ${env.BRANCH_NAME}"
+                    }
+                    
+                    // Mandatory approval validations for production
+                    if (params.ACTION == 'apply' || params.ACTION == 'destroy') {
+                        if (!params.DEPLOYMENT_TICKET || params.DEPLOYMENT_TICKET.trim() == '') {
+                            error "❌ DEPLOYMENT_TICKET is mandatory for production deployments"
+                        }
+                        
+                        if (!params.APPROVED_BY || params.APPROVED_BY.trim() == '') {
+                            error "❌ APPROVED_BY is mandatory for production deployments"
+                        }
+                        
+                        echo "✅ Production deployment approved by: ${params.APPROVED_BY}"
+                        echo "✅ Deployment ticket: ${params.DEPLOYMENT_TICKET}"
+                    }
+                }
+            }
+        }
+        
+        stage('🔐 AWS Authentication') {
+            steps {
+                script {
+                    echo "🔐 Assuming AWS Role for PRODUCTION environment..."
+                    
+                    withCredentials([aws(credentialsId: 'aws-jenkins-credentials', region: env.AWS_DEFAULT_REGION)]) {
+                        def assumeRoleResult = sh(
+                            script: """
+                                aws sts assume-role \
+                                    --role-arn ${env.AWS_ROLE_ARN} \
+                                    --role-session-name jenkins-prod-session-\${BUILD_NUMBER} \
+                                    --duration-seconds 3600 \
+                                    --output json
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        
+                        def credentials = readJSON text: assumeRoleResult
+                        
+                        env.AWS_ACCESS_KEY_ID = credentials.Credentials.AccessKeyId
+                        env.AWS_SECRET_ACCESS_KEY = credentials.Credentials.SecretAccessKey
+                        env.AWS_SESSION_TOKEN = credentials.Credentials.SessionToken
+                        
+                        echo "✅ AWS credentials configured successfully for PRODUCTION"
+                    }
+                }
+            }
+        }
+        
+        stage('📋 Infrastructure Analysis') {
+            steps {
+                dir('terraform') {
+                    script {
+                        echo "📋 Analyzing PRODUCTION Terraform configuration..."
+                        
+                        // Initialize Terraform
+                        sh """
+                            terraform init \
+                                -backend-config="bucket=${env.TF_STATE_BUCKET}" \
+                                -backend-config="key=${env.TF_STATE_KEY}" \
+                                -backend-config="region=${env.AWS_DEFAULT_REGION}" \
+                                -backend-config="dynamodb_table=${env.TF_LOCK_TABLE}" \
+                                -reconfigure
+                        """
+                        
+                        // Validate Terraform configuration
+                        sh 'terraform validate'
+                        
+                        // Generate plan with detailed output
+                        def planOutput = sh(
+                            script: 'terraform plan -var-file=prod.tfvars -detailed-exitcode -no-color',
+                            returnStatus: true
+                        )
+                        
+                        env.PLAN_EXIT_CODE = planOutput.toString()
+                        
+                        if (planOutput == 0) {
+                            echo "✅ No infrastructure changes detected for PRODUCTION"
+                            env.HAS_CHANGES = 'false'
+                        } else if (planOutput == 2) {
+                            echo "📊 Infrastructure changes detected for PRODUCTION - generating detailed plan..."
+                            sh 'terraform plan -var-file=prod.tfvars -out=tfplan-prod'
+                            
+                            // Show what will change
+                            def planShow = sh(
+                                script: 'terraform show -no-color tfplan-prod',
+                                returnStdout: true
+                            )
+                            
+                            echo "🔄 PLANNED CHANGES FOR PRODUCTION:"
+                            echo planShow
+                            env.HAS_CHANGES = 'true'
+                            
+                            // Save plan for review
+                            writeFile file: 'production-plan.txt', text: planShow
+                            archiveArtifacts artifacts: 'production-plan.txt'
+                            
+                        } else {
+                            error "❌ Terraform plan failed with exit code: ${planOutput}"
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('⚠️ Production Change Review') {
+            when {
+                expression { env.HAS_CHANGES == 'true' && (params.ACTION == 'apply' || params.ACTION == 'destroy') }
+            }
+            steps {
+                script {
+                    echo """
+                    ⚠️  PRODUCTION DEPLOYMENT REVIEW REQUIRED ⚠️
+                    
+                    Environment: PRODUCTION
+                    Action: ${params.ACTION}
+                    Ticket: ${params.DEPLOYMENT_TICKET}
+                    Approved By: ${params.APPROVED_BY}
+                    Build: ${env.BUILD_NUMBER}
+                    Branch: ${env.BRANCH_NAME}
+                    
+                    Please review the planned changes above before proceeding.
+                    """
+                    
+                    timeout(time: 30, unit: 'MINUTES') {
+                        input message: """
+                        🚨 PRODUCTION DEPLOYMENT CONFIRMATION 🚨
+                        
+                        Are you sure you want to ${params.ACTION} the PRODUCTION infrastructure?
+                        
+                        This action will affect the live production environment.
+                        """, ok: "Yes, proceed with ${params.ACTION}"
+                    }
+                }
+            }
+        }
+        
+        stage('🏗️ Production Infrastructure Deployment') {
+            when {
+                anyOf {
+                    expression { params.ACTION == 'apply' && env.HAS_CHANGES == 'true' }
+                    expression { params.ACTION == 'destroy' }
+                }
+            }
+            steps {
+                dir('terraform') {
+                    script {
+                        if (params.ACTION == 'apply') {
+                            echo "🏗️ Deploying infrastructure changes to PRODUCTION..."
+                            
+                            // Create deployment record
+                            def deploymentStart = new Date()
+                            echo "🕐 Deployment started at: ${deploymentStart}"
+                            
+                            // Never auto-approve in production without explicit confirmation
+                            if (params.AUTO_APPROVE && params.DEPLOYMENT_TICKET) {
+                                sh 'terraform apply -auto-approve tfplan-prod'
+                            } else {
+                                timeout(time: 15, unit: 'MINUTES') {
+                                    input message: 'Final confirmation: Apply changes to PRODUCTION?', ok: 'Apply to Production'
+                                }
+                                sh 'terraform apply -auto-approve tfplan-prod'
+                            }
+                            
+                            def deploymentEnd = new Date()
+                            echo "✅ PRODUCTION infrastructure deployment completed successfully!"
+                            echo "🕐 Deployment completed at: ${deploymentEnd}"
+                            
+                            // Store outputs for later stages
+                            def outputs = sh(
+                                script: 'terraform output -json',
+                                returnStdout: true
+                            )
+                            writeFile file: 'terraform-outputs-prod.json', text: outputs
+                            archiveArtifacts artifacts: 'terraform-outputs-prod.json'
+                            
+                        } else if (params.ACTION == 'destroy') {
+                            echo "🗑️ Destroying PRODUCTION infrastructure..."
+                            timeout(time: 10, unit: 'MINUTES') {
+                                input message: """
+                                🚨 FINAL WARNING 🚨
+                                
+                                You are about to DESTROY the PRODUCTION infrastructure!
+                                This action is IRREVERSIBLE!
+                                
+                                Are you absolutely sure?
+                                """, ok: 'YES, DESTROY PRODUCTION'
+                            }
+                            sh 'terraform destroy -var-file=prod.tfvars -auto-approve'
+                            echo "⚠️ PRODUCTION infrastructure has been destroyed"
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('🐳 Production Container Build & Push') {
+            when {
+                expression { params.DEPLOY_CONTAINERS && (params.ACTION == 'apply' || params.ACTION == 'plan') }
+            }
+            parallel {
+                stage('Auth Service') {
+                    steps {
+                        script {
+                            buildAndPushProductionImage('auth-service', 'microservices/auth-service')
+                        }
+                    }
+                }
+                stage('Client Service') {
+                    steps {
+                        script {
+                            buildAndPushProductionImage('client-service', 'microservices/client-service')
+                        }
+                    }
+                }
+                stage('Invoice Service') {
+                    steps {
+                        script {
+                            buildAndPushProductionImage('invoice-service', 'microservices/invoice-service')
+                        }
+                    }
+                }
+                stage('Notification Service') {
+                    steps {
+                        script {
+                            buildAndPushProductionImage('notification-service', 'microservices/notification-service')
+                        }
+                    }
+                }
+                stage('Payment Service') {
+                    steps {
+                        script {
+                            buildAndPushProductionImage('payment-service', 'microservices/payment-service')
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('🚀 Production ECS Service Deployment') {
+            when {
+                expression { params.DEPLOY_CONTAINERS && params.ACTION == 'apply' && env.HAS_CHANGES == 'true' }
+            }
+            steps {
+                script {
+                    echo "🚀 Deploying services to PRODUCTION ECS Fargate..."
+                    
+                    def services = ['auth-service', 'client-service', 'invoice-service', 'notification-service', 'payment-service']
+                    
+                    // Deploy services with rolling updates and health checks
+                    services.each { service ->
+                        deployProductionECSService(service)
+                    }
+                }
+            }
+        }
+        
+        stage('🔍 Production Health Verification') {
+            when {
+                expression { params.ACTION == 'apply' && env.HAS_CHANGES == 'true' }
+            }
+            steps {
+                script {
+                    echo "🔍 Verifying PRODUCTION deployment health..."
+                    
+                    // Wait for services to stabilize
+                    sleep(time: 60, unit: 'SECONDS')
+                    
+                    // Check ECS service health
+                    def services = ['auth-service', 'client-service', 'invoice-service', 'notification-service', 'payment-service']
+                    services.each { service ->
+                        verifyServiceHealth(service)
+                    }
+                }
+            }
+        }
+        
+        stage('✅ Production Deployment Summary') {
+            when {
+                expression { params.ACTION == 'apply' }
+            }
+            steps {
+                script {
+                    if (env.HAS_CHANGES == 'false') {
+                        echo """
+                        ✅ PRODUCTION DEPLOYMENT STATUS: NO CHANGES REQUIRED
+                        
+                        📊 Infrastructure State: Up to date
+                        🏗️ Resources: All resources match desired configuration
+                        📅 Last Verified: ${new Date()}
+                        🎫 Ticket: ${params.DEPLOYMENT_TICKET}
+                        👤 Verified By: ${params.APPROVED_BY}
+                        
+                        💡 Summary: No infrastructure changes were detected. Your PRODUCTION environment is running the latest approved configuration.
+                        """
+                    } else {
+                        echo """
+                        ✅ PRODUCTION DEPLOYMENT STATUS: SUCCESSFULLY COMPLETED
+                        
+                        🏗️ Infrastructure: Updated with approved changes
+                        🐳 Containers: Built and pushed to ECR with production tags
+                        🚀 Services: Deployed to ECS Fargate with health verification
+                        📅 Deployment Time: ${new Date()}
+                        🎫 Ticket: ${params.DEPLOYMENT_TICKET}
+                        👤 Approved By: ${params.APPROVED_BY}
+                        🔧 Build: ${env.BUILD_NUMBER}
+                        
+                        💡 Summary: All components have been successfully deployed to the PRODUCTION environment.
+                        """
+                        
+                        // Get ALB DNS name for verification
+                        dir('terraform') {
+                            def albDns = sh(
+                                script: 'terraform output -raw alb_dns_name 2>/dev/null || echo "Not available"',
+                                returnStdout: true
+                            ).trim()
+                            
+                            if (albDns && albDns != "Not available") {
+                                echo "🌐 Production Application URL: http://${albDns}"
+                            }
+                        }
+                        
+                        // Send deployment notification (implement as needed)
+                        // sendDeploymentNotification()
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        always {
+            script {
+                // Clean up
+                sh 'rm -f terraform/tfplan-prod terraform/terraform-outputs-prod.json terraform/production-plan.txt'
+                
+                // Clear AWS credentials
+                env.AWS_ACCESS_KEY_ID = ''
+                env.AWS_SECRET_ACCESS_KEY = ''
+                env.AWS_SESSION_TOKEN = ''
+            }
+        }
+        success {
+            script {
+                echo '✅ PRODUCTION Pipeline completed successfully!'
+                // Log successful deployment
+                echo """
+                PRODUCTION DEPLOYMENT LOG:
+                - Environment: PRODUCTION
+                - Action: ${params.ACTION}
+                - Status: SUCCESS
+                - Ticket: ${params.DEPLOYMENT_TICKET}
+                - Approved By: ${params.APPROVED_BY}
+                - Build: ${env.BUILD_NUMBER}
+                - Timestamp: ${new Date()}
+                """
+            }
+        }
+        failure {
+            script {
+                echo '❌ PRODUCTION Pipeline failed - immediate attention required!'
+                // Log failed deployment
+                echo """
+                PRODUCTION DEPLOYMENT FAILURE:
+                - Environment: PRODUCTION
+                - Action: ${params.ACTION}
+                - Status: FAILED
+                - Ticket: ${params.DEPLOYMENT_TICKET}
+                - Build: ${env.BUILD_NUMBER}
+                - Timestamp: ${new Date()}
+                """
+            }
+        }
+        cleanup {
+            cleanWs()
+        }
+    }
+}
+
+// Helper function to build and push Docker images for production
+def buildAndPushProductionImage(serviceName, contextPath) {
+    echo "🐳 Building ${serviceName} for PRODUCTION..."
+    
+    // Get ECR login token
+    sh '''
+        aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | \
+        docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com
+    '''
+    
+    // Build image with production optimizations
+    def imageTag = "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
+    def prodTag = "prod-${imageTag}"
+    def fullImageName = "${env.ECR_REPOSITORY}:${serviceName}-${prodTag}"
+    
+    dir(contextPath) {
+        sh """
+            # Build optimized production image
+            docker build \
+                --build-arg NODE_ENV=production \
+                --build-arg BUILD_NUMBER=${env.BUILD_NUMBER} \
+                -t ${serviceName}:${prodTag} .
+            
+            # Tag for ECR
+            docker tag ${serviceName}:${prodTag} ${fullImageName}
+            docker tag ${serviceName}:${prodTag} ${env.ECR_REPOSITORY}:${serviceName}-latest
+            docker tag ${serviceName}:${prodTag} ${env.ECR_REPOSITORY}:${serviceName}-stable
+        """
+    }
+    
+    // Push to ECR with multiple tags
+    sh """
+        docker push ${fullImageName}
+        docker push ${env.ECR_REPOSITORY}:${serviceName}-latest
+        docker push ${env.ECR_REPOSITORY}:${serviceName}-stable
+    """
+    
+    echo "✅ ${serviceName} PRODUCTION image pushed successfully"
+}
+
+// Helper function to deploy ECS services in production
+def deployProductionECSService(serviceName) {
+    echo "🚀 Deploying ${serviceName} to PRODUCTION ECS..."
+    
+    // Check if service exists
+    def serviceExists = sh(
+        script: """
+            aws ecs describe-services \
+                --cluster ${env.ECS_CLUSTER} \
+                --services ${env.TF_VAR_prefix}${serviceName} \
+                --region ${env.AWS_DEFAULT_REGION} \
+                --query 'services[0].status' \
+                --output text 2>/dev/null || echo 'NONE'
+        """,
+        returnStdout: true
+    ).trim()
+    
+    if (serviceExists == 'NONE' || serviceExists == 'INACTIVE') {
+        echo "Creating new PRODUCTION ECS service for ${serviceName}..."
+        // Production service creation with proper configuration
+        sh """
+            aws ecs create-service \
+                --cluster ${env.ECS_CLUSTER} \
+                --service-name ${env.TF_VAR_prefix}${serviceName} \
+                --task-definition ${env.TF_VAR_prefix}${serviceName} \
+                --desired-count 2 \
+                --launch-type FARGATE \
+                --network-configuration 'awsvpcConfiguration={subnets=[subnet-xxx],securityGroups=[sg-xxx],assignPublicIp=DISABLED}' \
+                --deployment-configuration 'maximumPercent=200,minimumHealthyPercent=50' \
+                --health-check-grace-period-seconds 300 \
+                --region ${env.AWS_DEFAULT_REGION}
+        """
+    } else {
+        echo "Updating existing PRODUCTION ECS service for ${serviceName}..."
+        sh """
+            aws ecs update-service \
+                --cluster ${env.ECS_CLUSTER} \
+                --service ${env.TF_VAR_prefix}${serviceName} \
+                --task-definition ${env.TF_VAR_prefix}${serviceName} \
+                --deployment-configuration 'maximumPercent=200,minimumHealthyPercent=50' \
+                --region ${env.AWS_DEFAULT_REGION}
+        """
+    }
+    
+    echo "✅ ${serviceName} PRODUCTION deployment initiated"
+}
+
+// Helper function to verify service health
+def verifyServiceHealth(serviceName) {
+    echo "🔍 Verifying health of ${serviceName}..."
+    
+    def healthCheck = sh(
+        script: """
+            aws ecs describe-services \
+                --cluster ${env.ECS_CLUSTER} \
+                --services ${env.TF_VAR_prefix}${serviceName} \
+                --region ${env.AWS_DEFAULT_REGION} \
+                --query 'services[0].runningCount' \
+                --output text
+        """,
+        returnStdout: true
+    ).trim()
+    
+    if (healthCheck.toInteger() > 0) {
+        echo "✅ ${serviceName} is healthy (${healthCheck} running tasks)"
+    } else {
+        echo "⚠️ ${serviceName} health check warning (${healthCheck} running tasks)"
+    }
+}

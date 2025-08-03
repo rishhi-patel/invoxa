@@ -9,9 +9,35 @@ output "cluster_name" {
 }
 
 output "alb_dns_name" {
-  value = module.alb.dns_name
+  value = module.alb.alb_dns_name
 }
 
 output "ecr_repo_url" {
   value = module.ecr.repository_url
+}
+
+# Database endpoint - COMMENTED OUT - USING EXTERNAL MONGODB
+# output "database_endpoint" {
+#   value     = module.rds.db_endpoint
+#   sensitive = true
+# }
+
+output "s3_bucket_name" {
+  value = module.s3.documents_bucket_id
+}
+
+output "secrets_mongodb_credentials_arn" {
+  value = module.secrets.mongodb_credentials_secret_arn
+}
+
+output "secrets_jwt_secret_arn" {
+  value = module.secrets.jwt_secret_arn
+}
+
+output "task_execution_role_arn" {
+  value = module.iam.ecs_task_execution_role_arn
+}
+
+output "task_role_arn" {
+  value = module.iam.ecs_task_role_arn
 }

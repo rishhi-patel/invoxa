@@ -1,0 +1,29 @@
+# Example Terraform variables file
+# Copy this to terraform.tfvars and fill in your values
+
+aws_region           = "us-east-1"
+vpc_cidr             = "10.1.0.0/16"
+public_subnet_cidrs  = ["10.1.101.0/24", "10.1.102.0/24", "10.1.103.0/24"]
+private_subnet_cidrs = ["10.1.1.0/24", "10.1.2.0/24", "10.1.3.0/24"]
+azs                  = ["us-east-1a", "us-east-1b", "us-east-1c"]
+
+tags = {
+  PROJECT   = "INVOXA"
+  PROGRAM   = "PROG8860"
+  ENV       = "DEV"
+  TERRAFORM = "TRUE"
+}
+
+prefix = "INX-DEV-USNV-"
+bucket_name      = "inx-dev-terraform-state-9015480"
+lock_table_name  = "inx-dev-tf-locks"
+
+# Sensitive variables - set these in your environment or terraform.tfvars
+# MongoDB connection (external database)
+# mongodb_uri       = "mongodb+srv://username:password@cluster.mongodb.net/invoxa?retryWrites=true&w=majority"
+# database_name     = "invoxa"
+
+# Authentication and API secrets
+# jwt_secret        = "your-jwt-secret-key"
+# stripe_secret_key = "sk_test_your_stripe_secret_key"
+# sendgrid_api_key  = "SG.your_sendgrid_api_key"

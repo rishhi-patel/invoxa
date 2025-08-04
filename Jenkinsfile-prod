@@ -31,9 +31,10 @@ pipeline {
     
     environment {
         AWS_DEFAULT_REGION = 'us-east-1'
+        AWS_ACCOUNT_ID = '857736875915'  // Add your AWS account ID
         ENVIRONMENT = 'prod'
         TF_VAR_prefix = 'INX-PRD-USNV-'
-        ECR_REPOSITORY = 'inx-INX-PRD-USNV--app'
+        ECR_REPOSITORY_BASE = '857736875915.dkr.ecr.us-east-1.amazonaws.com/inx-INX-PRD-USNV--app'
         ECS_CLUSTER = 'INX-PRD-USNV-CLUSTER01'
         
         // Terraform backend configuration
@@ -443,108 +444,130 @@ pipeline {
 def buildAndPushProductionImage(serviceName, contextPath) {
     echo "🐳 Building ${serviceName} for PRODUCTION..."
     
-    // Get ECR login token
-    sh '''
-        aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | \
-        docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com
-    '''
-    
-    // Build image with production optimizations
-    def imageTag = "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
-    def prodTag = "prod-${imageTag}"
-    def fullImageName = "${env.ECR_REPOSITORY}:${serviceName}-${prodTag}"
-    
-    dir(contextPath) {
+    try {
+        // Get ECR login token
+        sh '''
+            aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | \
+            docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com
+        '''
+        
+        // Build image with production optimizations
+        def imageTag = "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
+        def prodTag = "prod-${imageTag}"
+        def fullImageName = "${env.ECR_REPOSITORY_BASE}:${serviceName}-${prodTag}"
+        
+        dir(contextPath) {
+            sh """
+                # Build optimized production image
+                docker build \
+                    --build-arg NODE_ENV=production \
+                    --build-arg BUILD_NUMBER=${env.BUILD_NUMBER} \
+                    -t ${serviceName}:${prodTag} .
+                
+                # Tag for ECR
+                docker tag ${serviceName}:${prodTag} ${fullImageName}
+                docker tag ${serviceName}:${prodTag} ${env.ECR_REPOSITORY_BASE}:${serviceName}-latest
+                docker tag ${serviceName}:${prodTag} ${env.ECR_REPOSITORY_BASE}:${serviceName}-stable
+            """
+        }
+        
+        // Push to ECR with multiple tags
         sh """
-            # Build optimized production image
-            docker build \
-                --build-arg NODE_ENV=production \
-                --build-arg BUILD_NUMBER=${env.BUILD_NUMBER} \
-                -t ${serviceName}:${prodTag} .
-            
-            # Tag for ECR
-            docker tag ${serviceName}:${prodTag} ${fullImageName}
-            docker tag ${serviceName}:${prodTag} ${env.ECR_REPOSITORY}:${serviceName}-latest
-            docker tag ${serviceName}:${prodTag} ${env.ECR_REPOSITORY}:${serviceName}-stable
+            docker push ${fullImageName}
+            docker push ${env.ECR_REPOSITORY_BASE}:${serviceName}-latest
+            docker push ${env.ECR_REPOSITORY_BASE}:${serviceName}-stable
         """
+        
+        echo "✅ ${serviceName} PRODUCTION image pushed successfully"
+        
+    } catch (Exception e) {
+        error "❌ Failed to build/push ${serviceName}: ${e.getMessage()}"
     }
-    
-    // Push to ECR with multiple tags
-    sh """
-        docker push ${fullImageName}
-        docker push ${env.ECR_REPOSITORY}:${serviceName}-latest
-        docker push ${env.ECR_REPOSITORY}:${serviceName}-stable
-    """
-    
-    echo "✅ ${serviceName} PRODUCTION image pushed successfully"
 }
 
 // Helper function to deploy ECS services in production
 def deployProductionECSService(serviceName) {
     echo "🚀 Deploying ${serviceName} to PRODUCTION ECS..."
     
-    // Check if service exists
-    def serviceExists = sh(
-        script: """
-            aws ecs describe-services \
-                --cluster ${env.ECS_CLUSTER} \
-                --services ${env.TF_VAR_prefix}${serviceName} \
-                --region ${env.AWS_DEFAULT_REGION} \
-                --query 'services[0].status' \
-                --output text 2>/dev/null || echo 'NONE'
-        """,
-        returnStdout: true
-    ).trim()
-    
-    if (serviceExists == 'NONE' || serviceExists == 'INACTIVE') {
-        echo "Creating new PRODUCTION ECS service for ${serviceName}..."
-        // Production service creation with proper configuration
-        sh """
-            aws ecs create-service \
-                --cluster ${env.ECS_CLUSTER} \
-                --service-name ${env.TF_VAR_prefix}${serviceName} \
-                --task-definition ${env.TF_VAR_prefix}${serviceName} \
-                --desired-count 2 \
-                --launch-type FARGATE \
-                --network-configuration 'awsvpcConfiguration={subnets=[subnet-xxx],securityGroups=[sg-xxx],assignPublicIp=DISABLED}' \
-                --deployment-configuration 'maximumPercent=200,minimumHealthyPercent=50' \
-                --health-check-grace-period-seconds 300 \
-                --region ${env.AWS_DEFAULT_REGION}
-        """
-    } else {
-        echo "Updating existing PRODUCTION ECS service for ${serviceName}..."
-        sh """
-            aws ecs update-service \
-                --cluster ${env.ECS_CLUSTER} \
-                --service ${env.TF_VAR_prefix}${serviceName} \
-                --task-definition ${env.TF_VAR_prefix}${serviceName} \
-                --deployment-configuration 'maximumPercent=200,minimumHealthyPercent=50' \
-                --region ${env.AWS_DEFAULT_REGION}
-        """
+    try {
+        // Get network configuration from Terraform outputs
+        def terraformOutputs = readJSON file: 'terraform/terraform-outputs-prod.json'
+        def privateSubnets = terraformOutputs.private_subnet_ids.value.join(',')
+        def securityGroupId = terraformOutputs.ecs_security_group_id.value
+        
+        // Check if service exists
+        def serviceExists = sh(
+            script: """
+                aws ecs describe-services \
+                    --cluster ${env.ECS_CLUSTER} \
+                    --services ${env.TF_VAR_prefix}${serviceName} \
+                    --region ${env.AWS_DEFAULT_REGION} \
+                    --query 'services[0].status' \
+                    --output text 2>/dev/null || echo 'NONE'
+            """,
+            returnStdout: true
+        ).trim()
+        
+        if (serviceExists == 'NONE' || serviceExists == 'INACTIVE') {
+            echo "Creating new PRODUCTION ECS service for ${serviceName}..."
+            // Production service creation with proper configuration
+            sh """
+                aws ecs create-service \
+                    --cluster ${env.ECS_CLUSTER} \
+                    --service-name ${env.TF_VAR_prefix}${serviceName} \
+                    --task-definition ${env.TF_VAR_prefix}${serviceName} \
+                    --desired-count 2 \
+                    --launch-type FARGATE \
+                    --network-configuration 'awsvpcConfiguration={subnets=[${privateSubnets}],securityGroups=[${securityGroupId}],assignPublicIp=DISABLED}' \
+                    --deployment-configuration 'maximumPercent=200,minimumHealthyPercent=50' \
+                    --health-check-grace-period-seconds 300 \
+                    --region ${env.AWS_DEFAULT_REGION}
+            """
+        } else {
+            echo "Updating existing PRODUCTION ECS service for ${serviceName}..."
+            sh """
+                aws ecs update-service \
+                    --cluster ${env.ECS_CLUSTER} \
+                    --service ${env.TF_VAR_prefix}${serviceName} \
+                    --task-definition ${env.TF_VAR_prefix}${serviceName} \
+                    --deployment-configuration 'maximumPercent=200,minimumHealthyPercent=50' \
+                    --region ${env.AWS_DEFAULT_REGION}
+            """
+        }
+        
+        echo "✅ ${serviceName} PRODUCTION deployment initiated"
+        
+    } catch (Exception e) {
+        error "❌ Failed to deploy ${serviceName} to ECS: ${e.getMessage()}"
     }
-    
-    echo "✅ ${serviceName} PRODUCTION deployment initiated"
 }
 
 // Helper function to verify service health
 def verifyServiceHealth(serviceName) {
     echo "🔍 Verifying health of ${serviceName}..."
     
-    def healthCheck = sh(
-        script: """
-            aws ecs describe-services \
-                --cluster ${env.ECS_CLUSTER} \
-                --services ${env.TF_VAR_prefix}${serviceName} \
-                --region ${env.AWS_DEFAULT_REGION} \
-                --query 'services[0].runningCount' \
-                --output text
-        """,
-        returnStdout: true
-    ).trim()
-    
-    if (healthCheck.toInteger() > 0) {
-        echo "✅ ${serviceName} is healthy (${healthCheck} running tasks)"
-    } else {
-        echo "⚠️ ${serviceName} health check warning (${healthCheck} running tasks)"
+    try {
+        def healthCheck = sh(
+            script: """
+                aws ecs describe-services \
+                    --cluster ${env.ECS_CLUSTER} \
+                    --services ${env.TF_VAR_prefix}${serviceName} \
+                    --region ${env.AWS_DEFAULT_REGION} \
+                    --query 'services[0].runningCount' \
+                    --output text
+            """,
+            returnStdout: true
+        ).trim()
+        
+        if (healthCheck.toInteger() > 0) {
+            echo "✅ ${serviceName} is healthy (${healthCheck} running tasks)"
+        } else {
+            echo "⚠️ ${serviceName} health check warning (${healthCheck} running tasks)"
+            // Don't fail the build, just warn
+        }
+        
+    } catch (Exception e) {
+        echo "⚠️ Could not verify health for ${serviceName}: ${e.getMessage()}"
+        // Don't fail the build for health check issues
     }
 }

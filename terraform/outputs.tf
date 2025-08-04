@@ -41,3 +41,24 @@ output "task_execution_role_arn" {
 output "task_role_arn" {
   value = module.iam.ecs_task_role_arn
 }
+
+# Required outputs for Jenkins CI/CD pipeline
+output "private_subnet_ids" {
+  value = module.vpc.private_subnet_ids
+  description = "Private subnet IDs for ECS service deployment"
+}
+
+output "public_subnet_ids" {
+  value = module.vpc.public_subnet_ids
+  description = "Public subnet IDs for ALB"
+}
+
+output "ecs_security_group_id" {
+  value = module.security_groups.ecs_security_group_id
+  description = "Security group ID for ECS tasks"
+}
+
+output "alb_security_group_id" {
+  value = module.security_groups.alb_security_group_id
+  description = "Security group ID for Application Load Balancer"
+}

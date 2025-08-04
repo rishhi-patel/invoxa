@@ -26,9 +26,10 @@ pipeline {
     
     environment {
         AWS_DEFAULT_REGION = 'us-east-1'
+        AWS_ACCOUNT_ID = '857736875915'  // Add your AWS account ID
         ENVIRONMENT = 'dev'
         TF_VAR_prefix = 'INX-DEV-USNV-'
-        ECR_REPOSITORY = 'inx-INX-DEV-USNV--app'
+        ECR_REPOSITORY_BASE = '857736875915.dkr.ecr.us-east-1.amazonaws.com/inx-INX-DEV-USNV--app'
         ECS_CLUSTER = 'INX-DEV-USNV-CLUSTER01'
         
         // Terraform backend configuration
@@ -311,73 +312,88 @@ pipeline {
 def buildAndPushImage(serviceName, contextPath) {
     echo "🐳 Building ${serviceName}..."
     
-    // Get ECR login token
-    sh '''
-        aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | \
-        docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com
-    '''
-    
-    // Build image
-    def imageTag = "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
-    def fullImageName = "${env.ECR_REPOSITORY}:${serviceName}-${imageTag}"
-    
-    dir(contextPath) {
+    try {
+        // Get ECR login token
+        sh '''
+            aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | \
+            docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com
+        '''
+        
+        // Build image
+        def imageTag = "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
+        def fullImageName = "${env.ECR_REPOSITORY_BASE}:${serviceName}-${imageTag}"
+        
+        dir(contextPath) {
+            sh """
+                docker build -t ${serviceName}:latest .
+                docker tag ${serviceName}:latest ${fullImageName}
+                docker tag ${serviceName}:latest ${env.ECR_REPOSITORY_BASE}:${serviceName}-latest
+            """
+        }
+        
+        // Push to ECR
         sh """
-            docker build -t ${serviceName}:latest .
-            docker tag ${serviceName}:latest ${fullImageName}
-            docker tag ${serviceName}:latest ${env.ECR_REPOSITORY}:${serviceName}-latest
+            docker push ${fullImageName}
+            docker push ${env.ECR_REPOSITORY_BASE}:${serviceName}-latest
         """
+        
+        echo "✅ ${serviceName} image pushed successfully"
+        
+    } catch (Exception e) {
+        error "❌ Failed to build/push ${serviceName}: ${e.getMessage()}"
     }
-    
-    // Push to ECR
-    sh """
-        docker push ${fullImageName}
-        docker push ${env.ECR_REPOSITORY}:${serviceName}-latest
-    """
-    
-    echo "✅ ${serviceName} image pushed successfully"
 }
 
 // Helper function to deploy ECS services
 def deployECSService(serviceName) {
     echo "🚀 Deploying ${serviceName} to ECS..."
     
-    // Check if service exists
-    def serviceExists = sh(
-        script: """
-            aws ecs describe-services \
-                --cluster ${env.ECS_CLUSTER} \
-                --services ${env.TF_VAR_prefix}${serviceName} \
-                --region ${env.AWS_DEFAULT_REGION} \
-                --query 'services[0].status' \
-                --output text 2>/dev/null || echo 'NONE'
-        """,
-        returnStdout: true
-    ).trim()
-    
-    if (serviceExists == 'NONE' || serviceExists == 'INACTIVE') {
-        echo "Creating new ECS service for ${serviceName}..."
-        // Create service logic here
-        sh """
-            aws ecs create-service \
-                --cluster ${env.ECS_CLUSTER} \
-                --service-name ${env.TF_VAR_prefix}${serviceName} \
-                --task-definition ${env.TF_VAR_prefix}${serviceName} \
-                --desired-count 1 \
-                --launch-type FARGATE \
-                --network-configuration 'awsvpcConfiguration={subnets=[subnet-xxx],securityGroups=[sg-xxx],assignPublicIp=DISABLED}' \
-                --region ${env.AWS_DEFAULT_REGION}
-        """
-    } else {
-        echo "Updating existing ECS service for ${serviceName}..."
-        sh """
-            aws ecs update-service \
-                --cluster ${env.ECS_CLUSTER} \
-                --service ${env.TF_VAR_prefix}${serviceName} \
-                --task-definition ${env.TF_VAR_prefix}${serviceName} \
-                --region ${env.AWS_DEFAULT_REGION}
-        """
+    try {
+        // Get network configuration from Terraform outputs  
+        def terraformOutputs = readJSON file: 'terraform/terraform-outputs-dev.json'
+        def privateSubnets = terraformOutputs.private_subnet_ids.value.join(',')
+        def securityGroupId = terraformOutputs.ecs_security_group_id.value
+        
+        // Check if service exists
+        def serviceExists = sh(
+            script: """
+                aws ecs describe-services \
+                    --cluster ${env.ECS_CLUSTER} \
+                    --services ${env.TF_VAR_prefix}${serviceName} \
+                    --region ${env.AWS_DEFAULT_REGION} \
+                    --query 'services[0].status' \
+                    --output text 2>/dev/null || echo 'NONE'
+            """,
+            returnStdout: true
+        ).trim()
+        
+        if (serviceExists == 'NONE' || serviceExists == 'INACTIVE') {
+            echo "Creating new ECS service for ${serviceName}..."
+            // Create service logic here
+            sh """
+                aws ecs create-service \
+                    --cluster ${env.ECS_CLUSTER} \
+                    --service-name ${env.TF_VAR_prefix}${serviceName} \
+                    --task-definition ${env.TF_VAR_prefix}${serviceName} \
+                    --desired-count 1 \
+                    --launch-type FARGATE \
+                    --network-configuration 'awsvpcConfiguration={subnets=[${privateSubnets}],securityGroups=[${securityGroupId}],assignPublicIp=DISABLED}' \
+                    --region ${env.AWS_DEFAULT_REGION}
+            """
+        } else {
+            echo "Updating existing ECS service for ${serviceName}..."
+            sh """
+                aws ecs update-service \
+                    --cluster ${env.ECS_CLUSTER} \
+                    --service ${env.TF_VAR_prefix}${serviceName} \
+                    --task-definition ${env.TF_VAR_prefix}${serviceName} \
+                    --region ${env.AWS_DEFAULT_REGION}
+            """
+        }
+        
+        echo "✅ ${serviceName} deployment initiated"
+        
+    } catch (Exception e) {
+        error "❌ Failed to deploy ${serviceName} to ECS: ${e.getMessage()}"
     }
-    
-    echo "✅ ${serviceName} deployment initiated"
 }

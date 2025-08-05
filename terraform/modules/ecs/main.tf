@@ -44,7 +44,7 @@ resource "aws_ecs_task_definition" "auth_service" {
         logDriver = "awslogs"
         options = {
           "awslogs-group"         = aws_cloudwatch_log_group.ecs_log_group.name
-          "awslogs-region"        = "us-east-1"
+          "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "auth-service"
         }
       }
@@ -89,7 +89,7 @@ resource "aws_ecs_task_definition" "client_service" {
         logDriver = "awslogs"
         options = {
           "awslogs-group"         = aws_cloudwatch_log_group.ecs_log_group.name
-          "awslogs-region"        = "us-east-1"
+          "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "client-service"
         }
       }
@@ -133,7 +133,7 @@ resource "aws_ecs_task_definition" "invoice_service" {
         logDriver = "awslogs"
         options = {
           "awslogs-group"         = aws_cloudwatch_log_group.ecs_log_group.name
-          "awslogs-region"        = "us-east-1"
+          "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "invoice-service"
         }
       }
@@ -177,7 +177,7 @@ resource "aws_ecs_task_definition" "notification_service" {
         logDriver = "awslogs"
         options = {
           "awslogs-group"         = aws_cloudwatch_log_group.ecs_log_group.name
-          "awslogs-region"        = "us-east-1"
+          "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "notification-service"
         }
       }
@@ -221,7 +221,7 @@ resource "aws_ecs_task_definition" "payment_service" {
         logDriver = "awslogs"
         options = {
           "awslogs-group"         = aws_cloudwatch_log_group.ecs_log_group.name
-          "awslogs-region"        = "us-east-1"
+          "awslogs-region"        = var.aws_region
           "awslogs-stream-prefix" = "payment-service"
         }
       }

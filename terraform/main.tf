@@ -25,9 +25,13 @@ module "security_groups" {
 }
 
 module "ecs" {
-  source = "./modules/ecs"
-  prefix = var.prefix
-  tags   = var.tags
+  source             = "./modules/ecs"
+  prefix             = var.prefix
+  tags               = var.tags
+  aws_region         = var.aws_region
+  vpc_id             = module.vpc.vpc_id
+  private_subnet_ids = module.vpc.private_subnet_ids
+  ecs_sg_id          = module.security_groups.ecs_security_group_id
 }
 
 module "iam" {

@@ -84,27 +84,18 @@ pipeline {
         stage('🔐 AWS Authentication') {
             steps {
                 script {
-                    echo "🔐 Assuming AWS Role for PRODUCTION environment..."
+                    echo "🔐 Using direct AWS credentials for PRODUCTION environment..."
                     
                     withCredentials([aws(credentialsId: 'aws-jenkins-credentials', region: env.AWS_DEFAULT_REGION)]) {
-                        def assumeRoleResult = sh(
-                            script: """
-                                aws sts assume-role \
-                                    --role-arn ${env.AWS_ROLE_ARN} \
-                                    --role-session-name jenkins-prod-session-\${BUILD_NUMBER} \
-                                    --duration-seconds 3600 \
-                                    --output json
-                            """,
+                        // Test AWS access
+                        def callerIdentity = sh(
+                            script: 'aws sts get-caller-identity --output json',
                             returnStdout: true
                         ).trim()
                         
-                        def credentials = readJSON text: assumeRoleResult
-                        
-                        env.AWS_ACCESS_KEY_ID = credentials.Credentials.AccessKeyId
-                        env.AWS_SECRET_ACCESS_KEY = credentials.Credentials.SecretAccessKey
-                        env.AWS_SESSION_TOKEN = credentials.Credentials.SessionToken
-                        
-                        echo "✅ AWS credentials configured successfully for PRODUCTION"
+                        def identity = readJSON text: callerIdentity
+                        echo "✅ AWS authenticated as: ${identity.Arn}"
+                        echo "✅ Account ID: ${identity.Account}"
                     }
                 }
             }

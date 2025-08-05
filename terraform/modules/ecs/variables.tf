@@ -28,6 +28,12 @@ variable "ecs_sg_id" {
   default     = ""
 }
 
+variable "aws_region" {
+  description = "AWS region for CloudWatch logs"
+  type        = string
+  default     = "us-east-1"
+}
+
 variable "target_group_arn" {
   description = "Target group ARN for load balancer"
   type        = string

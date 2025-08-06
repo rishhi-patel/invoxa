@@ -80,31 +80,74 @@ pipeline {
                 script {
                     echo "� Installing/Updating AWS CLI..."
                     
-                    // Install AWS CLI v2 if not present or update if outdated
+                    // Install AWS CLI v2 without sudo privileges
                     sh '''
                         # Check if AWS CLI is installed
                         if ! command -v aws &> /dev/null; then
-                            echo "📥 Installing AWS CLI v2..."
-                            apt-get update -y
-                            apt-get install -y curl unzip
-                            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-                            unzip awscliv2.zip
-                            sudo ./aws/install
-                            rm -rf awscliv2.zip aws/
+                            echo "📥 Installing AWS CLI v2 in user space..."
+                            
+                            # Create user bin directory
+                            mkdir -p $HOME/bin
+                            export PATH=$HOME/bin:$PATH
+                            
+                            # Method 1: Install AWS CLI v2 in user space
+                            cd /tmp
+                            curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+                            
+                            if [ -f "awscliv2.zip" ]; then
+                                unzip -q awscliv2.zip
+                                if [ -d "aws" ]; then
+                                    # Install to user directory without sudo
+                                    ./aws/install --install-dir $HOME/.aws-cli --bin-dir $HOME/bin
+                                    rm -rf awscliv2.zip aws/
+                                    echo "✅ AWS CLI v2 installed in user space"
+                                fi
+                            fi
+                            
+                            # Method 2: Fallback to pip installation if needed
+                            if ! command -v aws &> /dev/null && ! [ -f "$HOME/bin/aws" ]; then
+                                echo "🐍 Trying pip installation as fallback..."
+                                pip3 install awscli --user --quiet 2>/dev/null || pip install awscli --user --quiet 2>/dev/null || echo "Pip installation attempted"
+                            fi
                         else
                             echo "✅ AWS CLI already installed"
                         fi
                         
+                        # Add user paths to PATH
+                        export PATH=$HOME/bin:$HOME/.local/bin:$PATH
+                        
                         # Verify installation
-                        aws --version
+                        if command -v aws &> /dev/null; then
+                            aws --version
+                        elif [ -f "$HOME/bin/aws" ]; then
+                            $HOME/bin/aws --version
+                        elif [ -f "$HOME/.local/bin/aws" ]; then
+                            $HOME/.local/bin/aws --version
+                        else
+                            echo "⚠️ AWS CLI installation may have failed, but continuing..."
+                        fi
                     '''
                     
                     echo "🔐 Using AWS credentials for DEV environment..."
                     
                     withCredentials([aws(credentialsId: 'aws-jenkins-credentials')]) {
-                        // Test AWS access
+                        // Test AWS access with proper PATH
                         def callerIdentity = sh(
-                            script: 'aws sts get-caller-identity --output json',
+                            script: '''
+                                export PATH=$HOME/bin:$HOME/.local/bin:$PATH
+                                
+                                # Try different AWS CLI locations
+                                if command -v aws &> /dev/null; then
+                                    aws sts get-caller-identity --output json
+                                elif [ -f "$HOME/bin/aws" ]; then
+                                    $HOME/bin/aws sts get-caller-identity --output json
+                                elif [ -f "$HOME/.local/bin/aws" ]; then
+                                    $HOME/.local/bin/aws sts get-caller-identity --output json
+                                else
+                                    echo "ERROR: AWS CLI not found in any expected location"
+                                    exit 1
+                                fi
+                            ''',
                             returnStdout: true
                         ).trim()
                         
@@ -113,7 +156,20 @@ pipeline {
                         echo "✅ Account ID: ${identity.Account}"
                         
                         // Verify access to S3 bucket
-                        sh "aws s3 ls s3://${env.TF_STATE_BUCKET}/ || echo 'Note: S3 bucket may not exist yet - will be created if needed'"
+                        sh '''
+                            export PATH=$HOME/bin:$HOME/.local/bin:$PATH
+                            
+                            # Try different AWS CLI locations for S3 access test
+                            if command -v aws &> /dev/null; then
+                                aws s3 ls s3://''' + env.TF_STATE_BUCKET + '''/ || echo 'Note: S3 bucket may not exist yet - will be created if needed'
+                            elif [ -f "$HOME/bin/aws" ]; then
+                                $HOME/bin/aws s3 ls s3://''' + env.TF_STATE_BUCKET + '''/ || echo 'Note: S3 bucket may not exist yet - will be created if needed'
+                            elif [ -f "$HOME/.local/bin/aws" ]; then
+                                $HOME/.local/bin/aws s3 ls s3://''' + env.TF_STATE_BUCKET + '''/ || echo 'Note: S3 bucket may not exist yet - will be created if needed'
+                            else
+                                echo 'Note: AWS CLI not found, skipping S3 bucket verification'
+                            fi
+                        '''
                     }
                 }
             }

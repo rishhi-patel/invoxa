@@ -26,10 +26,10 @@ pipeline {
     
     environment {
         AWS_DEFAULT_REGION = 'us-east-1'
-        AWS_ACCOUNT_ID = '857736875915'  // Add your AWS account ID
+        AWS_ACCOUNT_ID = '857736875915'
         ENVIRONMENT = 'dev'
         TF_VAR_prefix = 'INX-DEV-USNV-'
-        ECR_REPOSITORY_BASE = 'public.ecr.aws/your-alias/inx-INX-DEV-USNV--app'
+        ECR_REPOSITORY_BASE = 'public.ecr.aws/i5k8d9h4'
         ECS_CLUSTER = 'INX-DEV-USNV-CLUSTER01'
         
         // Terraform backend configuration
@@ -42,10 +42,10 @@ pipeline {
     }
     
     stages {
-        stage('🔍 Environment Validation') {
+        stage('Environment Validation') {
             steps {
                 script {
-                    echo "🚀 Starting INVOXA Infrastructure Deployment - DEV Environment"
+                    echo "Starting INVOXA Infrastructure Deployment - DEV Environment"
                     
                     // Get branch name from Git
                     def branchName = env.BRANCH_NAME ?: sh(
@@ -63,123 +63,43 @@ pipeline {
                     
                     // Branch validation (relaxed for initial testing)
                     if (branchName != 'cicd') {
-                        echo "⚠️ Warning: DEV pipeline is recommended to run on 'cicd' branch. Current branch: ${branchName}"
-                        echo "ℹ️ Continuing deployment for testing purposes..."
-                        // For initial testing, we'll continue instead of failing
-                        // Uncomment the line below to enforce branch restriction:
-                        // error "❌ DEV pipeline should only run on 'cicd' branch. Current branch: ${branchName}"
+                        echo "WARNING: DEV pipeline is recommended to run on 'cicd' branch. Current branch: ${branchName}"
+                        echo "Continuing deployment for testing purposes..."
                     } else {
-                        echo "✅ Running on correct branch: ${branchName}"
+                        echo "Running on correct branch: ${branchName}"
                     }
                 }
             }
         }
         
-        stage('🔐 AWS Authentication') {
+        stage('AWS Authentication') {
             steps {
                 script {
-                    echo "� Installing/Updating AWS CLI..."
-                    
-                    // Install AWS CLI v2 without sudo privileges
-                    sh '''
-                        # Check if AWS CLI is installed
-                        if ! command -v aws &> /dev/null; then
-                            echo "📥 Installing AWS CLI v2 in user space..."
-                            
-                            # Create user bin directory
-                            mkdir -p $HOME/bin
-                            export PATH=$HOME/bin:$PATH
-                            
-                            # Method 1: Install AWS CLI v2 in user space
-                            cd /tmp
-                            curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-                            
-                            if [ -f "awscliv2.zip" ]; then
-                                unzip -q awscliv2.zip
-                                if [ -d "aws" ]; then
-                                    # Install to user directory without sudo
-                                    ./aws/install --install-dir $HOME/.aws-cli --bin-dir $HOME/bin
-                                    rm -rf awscliv2.zip aws/
-                                    echo "✅ AWS CLI v2 installed in user space"
-                                fi
-                            fi
-                            
-                            # Method 2: Fallback to pip installation if needed
-                            if ! command -v aws &> /dev/null && ! [ -f "$HOME/bin/aws" ]; then
-                                echo "🐍 Trying pip installation as fallback..."
-                                pip3 install awscli --user --quiet 2>/dev/null || pip install awscli --user --quiet 2>/dev/null || echo "Pip installation attempted"
-                            fi
-                        else
-                            echo "✅ AWS CLI already installed"
-                        fi
-                        
-                        # Add user paths to PATH
-                        export PATH=$HOME/bin:$HOME/.local/bin:$PATH
-                        
-                        # Verify installation
-                        if command -v aws &> /dev/null; then
-                            aws --version
-                        elif [ -f "$HOME/bin/aws" ]; then
-                            $HOME/bin/aws --version
-                        elif [ -f "$HOME/.local/bin/aws" ]; then
-                            $HOME/.local/bin/aws --version
-                        else
-                            echo "⚠️ AWS CLI installation may have failed, but continuing..."
-                        fi
-                    '''
-                    
-                    echo "🔐 Using AWS credentials for DEV environment..."
+                    echo "Using AWS credentials for DEV environment..."
                     
                     withCredentials([aws(credentialsId: 'aws-jenkins-credentials')]) {
-                        // Test AWS access with proper PATH
+                        // Test AWS connectivity
                         def callerIdentity = sh(
-                            script: '''
-                                export PATH=$HOME/bin:$HOME/.local/bin:$PATH
-                                
-                                # Try different AWS CLI locations
-                                if command -v aws &> /dev/null; then
-                                    aws sts get-caller-identity --output json
-                                elif [ -f "$HOME/bin/aws" ]; then
-                                    $HOME/bin/aws sts get-caller-identity --output json
-                                elif [ -f "$HOME/.local/bin/aws" ]; then
-                                    $HOME/.local/bin/aws sts get-caller-identity --output json
-                                else
-                                    echo "ERROR: AWS CLI not found in any expected location"
-                                    exit 1
-                                fi
-                            ''',
+                            script: 'aws sts get-caller-identity --output json',
                             returnStdout: true
                         ).trim()
                         
                         def identity = readJSON text: callerIdentity
-                        echo "✅ AWS authenticated as: ${identity.Arn}"
-                        echo "✅ Account ID: ${identity.Account}"
+                        echo "AWS authenticated as: ${identity.Arn}"
+                        echo "Account ID: ${identity.Account}"
                         
                         // Verify access to S3 bucket
-                        sh '''
-                            export PATH=$HOME/bin:$HOME/.local/bin:$PATH
-                            
-                            # Try different AWS CLI locations for S3 access test
-                            if command -v aws &> /dev/null; then
-                                aws s3 ls s3://''' + env.TF_STATE_BUCKET + '''/ || echo 'Note: S3 bucket may not exist yet - will be created if needed'
-                            elif [ -f "$HOME/bin/aws" ]; then
-                                $HOME/bin/aws s3 ls s3://''' + env.TF_STATE_BUCKET + '''/ || echo 'Note: S3 bucket may not exist yet - will be created if needed'
-                            elif [ -f "$HOME/.local/bin/aws" ]; then
-                                $HOME/.local/bin/aws s3 ls s3://''' + env.TF_STATE_BUCKET + '''/ || echo 'Note: S3 bucket may not exist yet - will be created if needed'
-                            else
-                                echo 'Note: AWS CLI not found, skipping S3 bucket verification'
-                            fi
-                        '''
+                        sh "aws s3 ls s3://${env.TF_STATE_BUCKET}/ || echo 'Note: S3 bucket may not exist yet - will be created if needed'"
                     }
                 }
             }
         }
         
-        stage('📋 Infrastructure Analysis') {
+        stage('Infrastructure Analysis') {
             steps {
                 dir('terraform') {
                     script {
-                        echo "📋 Analyzing Terraform configuration..."
+                        echo "Analyzing Terraform configuration..."
                         
                         withCredentials([aws(credentialsId: 'aws-jenkins-credentials')]) {
                             // Initialize Terraform
@@ -201,10 +121,10 @@ pipeline {
                             env.PLAN_EXIT_CODE = planOutput.toString()
                             
                             if (planOutput == 0) {
-                                echo "✅ No infrastructure changes detected"
+                                echo "No infrastructure changes detected"
                                 env.HAS_CHANGES = 'false'
                             } else if (planOutput == 2) {
-                                echo "📊 Infrastructure changes detected - generating detailed plan..."
+                                echo "Infrastructure changes detected - generating detailed plan..."
                                 sh 'terraform plan -var-file=dev.tfvars -out=tfplan-dev'
                                 
                                 // Show what will change
@@ -213,11 +133,11 @@ pipeline {
                                     returnStdout: true
                                 )
                                 
-                                echo "🔄 PLANNED CHANGES:"
+                                echo "PLANNED CHANGES:"
                                 echo planShow
                                 env.HAS_CHANGES = 'true'
                             } else {
-                                error "❌ Terraform plan failed with exit code: ${planOutput}"
+                                error "Terraform plan failed with exit code: ${planOutput}"
                             }
                         }
                     }
@@ -225,7 +145,7 @@ pipeline {
             }
         }
         
-        stage('🏗️ Infrastructure Deployment') {
+        stage('Infrastructure Deployment') {
             when {
                 anyOf {
                     expression { params.ACTION == 'apply' && env.HAS_CHANGES == 'true' }
@@ -237,7 +157,7 @@ pipeline {
                     script {
                         withCredentials([aws(credentialsId: 'aws-jenkins-credentials')]) {
                             if (params.ACTION == 'apply') {
-                                echo "🏗️ Deploying infrastructure changes..."
+                                echo "Deploying infrastructure changes..."
                                 
                                 if (params.AUTO_APPROVE) {
                                     sh 'terraform apply -auto-approve tfplan-dev'
@@ -248,7 +168,7 @@ pipeline {
                                     sh 'terraform apply -auto-approve tfplan-dev'
                                 }
                                 
-                                echo "✅ Infrastructure deployment completed successfully!"
+                                echo "Infrastructure deployment completed successfully!"
                                 
                                 // Store outputs for later stages
                                 def outputs = sh(
@@ -259,7 +179,7 @@ pipeline {
                                 archiveArtifacts artifacts: 'terraform-outputs-dev.json'
                                 
                             } else if (params.ACTION == 'destroy') {
-                                echo "🗑️ Destroying infrastructure..."
+                                echo "Destroying infrastructure..."
                                 timeout(time: 5, unit: 'MINUTES') {
                                     input message: 'Are you sure you want to DESTROY the infrastructure?', ok: 'Destroy'
                                 }
@@ -271,7 +191,7 @@ pipeline {
             }
         }
         
-        stage('🐳 Container Build & Push') {
+        stage('Container Build & Push') {
             when {
                 expression { params.DEPLOY_CONTAINERS && (params.ACTION == 'apply' || params.ACTION == 'plan') }
             }
@@ -314,13 +234,13 @@ pipeline {
             }
         }
         
-        stage('🚀 ECS Service Deployment') {
+        stage('ECS Service Deployment') {
             when {
                 expression { params.DEPLOY_CONTAINERS && params.ACTION == 'apply' && env.HAS_CHANGES == 'true' }
             }
             steps {
                 script {
-                    echo "🚀 Deploying services to ECS Fargate..."
+                    echo "Deploying services to ECS Fargate..."
                     
                     def services = ['auth-service', 'client-service', 'invoice-service', 'notification-service', 'payment-service']
                     
@@ -331,7 +251,7 @@ pipeline {
             }
         }
         
-        stage('✅ Deployment Verification') {
+        stage('Deployment Verification') {
             when {
                 expression { params.ACTION == 'apply' }
             }
@@ -339,25 +259,25 @@ pipeline {
                 script {
                     if (env.HAS_CHANGES == 'false') {
                         echo """
-                        ✅ DEPLOYMENT STATUS: NO CHANGES REQUIRED
+                        DEPLOYMENT STATUS: NO CHANGES REQUIRED
                         
-                        📊 Infrastructure State: Up to date
-                        🏗️ Resources: All resources match desired configuration
-                        📅 Last Updated: Current state is already aligned with Terraform configuration
+                        Infrastructure State: Up to date
+                        Resources: All resources match desired configuration
+                        Last Updated: Current state is already aligned with Terraform configuration
                         
-                        💡 Summary: No infrastructure changes were detected. Your DEV environment is running the latest configuration.
+                        Summary: No infrastructure changes were detected. Your DEV environment is running the latest configuration.
                         """
                     } else {
                         echo """
-                        ✅ DEPLOYMENT STATUS: SUCCESSFULLY COMPLETED
+                        DEPLOYMENT STATUS: SUCCESSFULLY COMPLETED
                         
-                        🏗️ Infrastructure: Updated with latest changes
-                        🐳 Containers: Built and pushed to ECR
-                        🚀 Services: Deployed to ECS Fargate
-                        📅 Deployment Time: ${new Date()}
-                        🎫 Ticket: ${params.DEPLOYMENT_TICKET ?: 'N/A'}
+                        Infrastructure: Updated with latest changes
+                        Containers: Built and pushed to ECR
+                        Services: Deployed to ECS Fargate
+                        Deployment Time: ${new Date()}
+                        Ticket: ${params.DEPLOYMENT_TICKET ?: 'N/A'}
                         
-                        💡 Summary: All components have been successfully deployed to the DEV environment.
+                        Summary: All components have been successfully deployed to the DEV environment.
                         """
                         
                         // Get ALB DNS name for verification
@@ -368,7 +288,7 @@ pipeline {
                             ).trim()
                             
                             if (albDns && albDns != "Not available") {
-                                echo "🌐 Application URL: http://${albDns}"
+                                echo "Application URL: http://${albDns}"
                             }
                         }
                     }
@@ -390,10 +310,10 @@ pipeline {
             }
         }
         success {
-            echo '✅ Pipeline completed successfully!'
+            echo 'Pipeline completed successfully!'
         }
         failure {
-            echo '❌ Pipeline failed - check logs for details'
+            echo 'Pipeline failed - check logs for details'
         }
         cleanup {
             cleanWs()
@@ -403,45 +323,42 @@ pipeline {
 
 // Helper function to build and push Docker images
 def buildAndPushImage(serviceName, contextPath) {
-    echo "🐳 Building ${serviceName}..."
+    echo "Building ${serviceName}..."
     
     try {
         withCredentials([aws(credentialsId: 'aws-jenkins-credentials')]) {
             // Get Public ECR login token (us-east-1 only)
-            sh '''
-                aws ecr-public get-login-password --region us-east-1 | \
-                docker login --username AWS --password-stdin public.ecr.aws
-            '''
+            sh 'aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws'
             
             // Build image
             def imageTag = "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
-            def fullImageName = "${env.ECR_REPOSITORY_BASE}:${serviceName}-${imageTag}"
+            def fullImageName = "${env.ECR_REPOSITORY_BASE}/${serviceName}:${imageTag}"
             
             dir(contextPath) {
                 sh """
                     docker build -t ${serviceName}:latest .
                     docker tag ${serviceName}:latest ${fullImageName}
-                    docker tag ${serviceName}:latest ${env.ECR_REPOSITORY_BASE}:${serviceName}-latest
+                    docker tag ${serviceName}:latest ${env.ECR_REPOSITORY_BASE}/${serviceName}:latest
                 """
             }
             
             // Push to Public ECR
             sh """
                 docker push ${fullImageName}
-                docker push ${env.ECR_REPOSITORY_BASE}:${serviceName}-latest
+                docker push ${env.ECR_REPOSITORY_BASE}/${serviceName}:latest
             """
             
-            echo "✅ ${serviceName} image pushed successfully to Public ECR"
+            echo "${serviceName} image pushed successfully to Public ECR"
         }
         
     } catch (Exception e) {
-        error "❌ Failed to build/push ${serviceName}: ${e.getMessage()}"
+        error "Failed to build/push ${serviceName}: ${e.getMessage()}"
     }
 }
 
 // Helper function to deploy ECS services
 def deployECSService(serviceName) {
-    echo "🚀 Deploying ${serviceName} to ECS..."
+    echo "Deploying ${serviceName} to ECS..."
     
     try {
         withCredentials([aws(credentialsId: 'aws-jenkins-credentials')]) {
@@ -465,7 +382,6 @@ def deployECSService(serviceName) {
             
             if (serviceExists == 'NONE' || serviceExists == 'INACTIVE') {
                 echo "Creating new ECS service for ${serviceName}..."
-                // Create service logic here
                 sh """
                     aws ecs create-service \
                         --cluster ${env.ECS_CLUSTER} \
@@ -487,10 +403,10 @@ def deployECSService(serviceName) {
                 """
             }
             
-            echo "✅ ${serviceName} deployment initiated"
+            echo "${serviceName} deployment initiated"
         }
         
     } catch (Exception e) {
-        error "❌ Failed to deploy ${serviceName} to ECS: ${e.getMessage()}"
+        error "Failed to deploy ${serviceName} to ECS: ${e.getMessage()}"
     }
 }

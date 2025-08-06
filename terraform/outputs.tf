@@ -13,7 +13,7 @@ output "alb_dns_name" {
 }
 
 output "ecr_repo_url" {
-  value = module.ecr.repository_url
+  value = module.ecr.ecr_repository_url
 }
 
 # Database endpoint - COMMENTED OUT - USING EXTERNAL MONGODB
@@ -54,11 +54,11 @@ output "public_subnet_ids" {
 }
 
 output "ecs_security_group_id" {
-  value = module.security_groups.ecs_security_group_id
+  value = module.security_groups.ecs_sg_id
   description = "Security group ID for ECS tasks"
 }
 
 output "alb_security_group_id" {
-  value = module.security_groups.alb_security_group_id
+  value = module.security_groups.alb_sg_id
   description = "Security group ID for Application Load Balancer"
 }

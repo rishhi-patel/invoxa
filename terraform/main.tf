@@ -1,11 +1,12 @@
 ## === root/main.tf ===
 
-module "backend" {
-  source          = "./modules/backend"
-  bucket_name     = var.bucket_name
-  lock_table_name = var.lock_table_name
-  tags            = var.tags
-}
+# BACKEND MODULE - COMMENTED OUT - S3/DynamoDB managed externally via Jenkins
+# module "backend" {
+#   source          = "./modules/backend"
+#   bucket_name     = var.bucket_name
+#   lock_table_name = var.lock_table_name
+#   tags            = var.tags
+# }
 
 module "vpc" {
   source              = "./modules/vpc"
@@ -31,7 +32,7 @@ module "ecs" {
   aws_region         = var.aws_region
   vpc_id             = module.vpc.vpc_id
   private_subnet_ids = module.vpc.private_subnet_ids
-  ecs_sg_id          = module.security_groups.ecs_security_group_id
+  ecs_sg_id          = module.security_groups.ecs_sg_id
 }
 
 module "iam" {

@@ -111,6 +111,23 @@ npm run dev
 
 ## ☁️ **Cloud Deployment**
 
+### **Prerequisites - Jenkins Environment Setup:**
+
+Before running the CI/CD pipeline, execute the Jenkins setup script **once** to install all required tools:
+
+```bash
+# In your Jenkins agent/container, run:
+chmod +x jenkins-setup.sh
+./jenkins-setup.sh
+```
+
+This installs:
+- **AWS CLI v2** - AWS service interactions
+- **Terraform v1.6.6** - Infrastructure as Code
+- **Node.js v18.19.0 & npm** - Node.js service builds
+- **Python 3.11 & pip** - Python service builds  
+- **Docker CLI** - Container operations
+
 ### **AWS Infrastructure:**
 - **2 Environments:** Development (DEV) & Production (PROD)
 - **Terraform IaC:** Complete infrastructure automation
@@ -118,7 +135,12 @@ npm run dev
 
 ### **Deployment Process:**
 
-1. **Setup AWS Resources:**
+1. **Setup Jenkins Environment (One-time):**
+```bash
+./jenkins-setup.sh
+```
+
+2. **Setup AWS Resources:**
 ```bash
 chmod +x setup-aws.sh
 ./setup-aws.sh

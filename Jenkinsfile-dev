@@ -75,26 +75,50 @@ pipeline {
         stage('AWS Authentication') {
             steps {
                 script {
-                    echo "Installing and configuring AWS CLI..."
+                    echo "Setting up environment and AWS credentials..."
                     
-                    // Install AWS CLI if not present
+                    // Try multiple possible Jenkins paths
                     sh '''
-                        if [ ! -f /var/jenkins_home/bin/aws ]; then
-                            echo "Installing AWS CLI..."
-                            mkdir -p /var/jenkins_home/bin
-                            cd /tmp
-                            curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-                            unzip -q awscliv2.zip
-                            ./aws/install --install-dir /var/jenkins_home/aws-cli --bin-dir /var/jenkins_home/bin
-                            rm -rf awscliv2.zip aws/
-                            echo "AWS CLI installed successfully"
+                        # Check for tools in common Jenkins locations
+                        echo "Checking for AWS CLI..."
+                        if command -v aws >/dev/null 2>&1; then
+                            echo "✅ AWS CLI found in system PATH: $(which aws)"
+                            aws --version
+                        elif [ -f /var/jenkins_home/bin/aws ]; then
+                            echo "✅ AWS CLI found in /var/jenkins_home/bin/aws"
+                            export PATH="/var/jenkins_home/bin:$PATH"
+                            aws --version
+                        elif [ -f /usr/local/bin/aws ]; then
+                            echo "✅ AWS CLI found in /usr/local/bin/aws"
+                            export PATH="/usr/local/bin:$PATH"
+                            aws --version
                         else
-                            echo "AWS CLI already installed"
+                            echo "❌ AWS CLI not found in common locations"
+                            echo "Please install AWS CLI using the setup-jenkins-tools.sh script"
+                            exit 1
+                        fi
+                        
+                        echo "Checking for Terraform..."
+                        if command -v terraform >/dev/null 2>&1; then
+                            echo "✅ Terraform found in system PATH: $(which terraform)"
+                            terraform version
+                        elif [ -f /var/jenkins_home/bin/terraform ]; then
+                            echo "✅ Terraform found in /var/jenkins_home/bin/terraform"
+                            export PATH="/var/jenkins_home/bin:$PATH"
+                            terraform version
+                        elif [ -f /usr/local/bin/terraform ]; then
+                            echo "✅ Terraform found in /usr/local/bin/terraform"
+                            export PATH="/usr/local/bin:$PATH"
+                            terraform version
+                        else
+                            echo "❌ Terraform not found in common locations"
+                            echo "Please install Terraform using the setup-jenkins-tools.sh script"
+                            exit 1
                         fi
                     '''
                     
-                    // Add AWS CLI to PATH for this pipeline
-                    env.PATH = "/var/jenkins_home/bin:${env.PATH}"
+                    // Set PATH for this pipeline to include common tool locations
+                    env.PATH = "/var/jenkins_home/bin:/usr/local/bin:/usr/bin:${env.PATH}"
                     
                     echo "Using AWS credentials for DEV environment..."
                     

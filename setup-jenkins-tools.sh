@@ -38,28 +38,10 @@ if [ "$USER" != "jenkins" ] && [ "$USER" != "root" ]; then
     print_info "Current user: $USER"
 fi
 
-# Detect Jenkins home directory
-JENKINS_HOME_DIRS=("/var/jenkins_home" "/var/lib/jenkins" "/home/jenkins" "$HOME")
-JENKINS_HOME=""
-
-for dir in "${JENKINS_HOME_DIRS[@]}"; do
-    if [ -d "$dir" ]; then
-        JENKINS_HOME="$dir"
-        print_info "Found Jenkins home directory: $JENKINS_HOME"
-        break
-    fi
-done
-
-if [ -z "$JENKINS_HOME" ]; then
-    print_error "Jenkins home directory not found. Please set JENKINS_HOME manually."
-    print_info "Common locations: /var/jenkins_home, /var/lib/jenkins, /home/jenkins"
-    exit 1
-fi
-
 # Create necessary directories
 print_info "Creating necessary directories..."
-mkdir -p "$JENKINS_HOME/bin"
-mkdir -p "$JENKINS_HOME/tools"
+mkdir -p /var/jenkins_home/bin
+mkdir -p /var/jenkins_home/tools
 mkdir -p /tmp/jenkins-setup
 
 echo ""

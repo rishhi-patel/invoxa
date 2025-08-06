@@ -10,5 +10,5 @@ tags = {
   TERRAFORM = "TRUE"
 }
 prefix = "INX-PRD-USNV-"
-bucket_name      = "inx-prd-terraform-state"
+bucket_name      = "inx-prd-terraform-state-config"
 lock_table_name  = "inx-prd-tf-locks"

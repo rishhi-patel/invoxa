@@ -75,15 +75,7 @@ pipeline {
         stage('AWS Authentication') {
             steps {
                 script {
-                    echo "Setting up environment and AWS credentials..."
-                    
-                    // Source environment setup (tools PATH)
-                    sh 'source /var/jenkins_home/bin/setup-env.sh'
-                    
-                    // Add tools to PATH for this pipeline
-                    env.PATH = "/var/jenkins_home/bin:/var/jenkins_home/tools/node/bin:${env.PATH}"
-                    
-                    echo "Using AWS credentials for DEV environment..."
+                    echo "Setting up AWS credentials using Jenkins AWS Plugin..."
                     
                     withCredentials([aws(credentialsId: 'aws-jenkins-credentials')]) {
                         // Test AWS connectivity

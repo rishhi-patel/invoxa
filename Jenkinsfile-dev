@@ -33,7 +33,7 @@ pipeline {
         ECS_CLUSTER = 'INX-DEV-USNV-CLUSTER01'
         
         // Terraform backend configuration
-        TF_STATE_BUCKET = 'inx-dev-terraform-state'
+        TF_STATE_BUCKET = 'inx-dev-terraform-state-config'
         TF_STATE_KEY = 'terraform.tfstate'
         TF_LOCK_TABLE = 'inx-dev-tf-locks'
         
@@ -77,48 +77,11 @@ pipeline {
                 script {
                     echo "Setting up environment and AWS credentials..."
                     
-                    // Try multiple possible Jenkins paths
-                    sh '''
-                        # Check for tools in common Jenkins locations
-                        echo "Checking for AWS CLI..."
-                        if command -v aws >/dev/null 2>&1; then
-                            echo "✅ AWS CLI found in system PATH: $(which aws)"
-                            aws --version
-                        elif [ -f /var/jenkins_home/bin/aws ]; then
-                            echo "✅ AWS CLI found in /var/jenkins_home/bin/aws"
-                            export PATH="/var/jenkins_home/bin:$PATH"
-                            aws --version
-                        elif [ -f /usr/local/bin/aws ]; then
-                            echo "✅ AWS CLI found in /usr/local/bin/aws"
-                            export PATH="/usr/local/bin:$PATH"
-                            aws --version
-                        else
-                            echo "❌ AWS CLI not found in common locations"
-                            echo "Please install AWS CLI using the setup-jenkins-tools.sh script"
-                            exit 1
-                        fi
-                        
-                        echo "Checking for Terraform..."
-                        if command -v terraform >/dev/null 2>&1; then
-                            echo "✅ Terraform found in system PATH: $(which terraform)"
-                            terraform version
-                        elif [ -f /var/jenkins_home/bin/terraform ]; then
-                            echo "✅ Terraform found in /var/jenkins_home/bin/terraform"
-                            export PATH="/var/jenkins_home/bin:$PATH"
-                            terraform version
-                        elif [ -f /usr/local/bin/terraform ]; then
-                            echo "✅ Terraform found in /usr/local/bin/terraform"
-                            export PATH="/usr/local/bin:$PATH"
-                            terraform version
-                        else
-                            echo "❌ Terraform not found in common locations"
-                            echo "Please install Terraform using the setup-jenkins-tools.sh script"
-                            exit 1
-                        fi
-                    '''
+                    // Source environment setup (tools PATH)
+                    sh 'source /var/jenkins_home/bin/setup-env.sh'
                     
-                    // Set PATH for this pipeline to include common tool locations
-                    env.PATH = "/var/jenkins_home/bin:/usr/local/bin:/usr/bin:${env.PATH}"
+                    // Add tools to PATH for this pipeline
+                    env.PATH = "/var/jenkins_home/bin:/var/jenkins_home/tools/node/bin:${env.PATH}"
                     
                     echo "Using AWS credentials for DEV environment..."
                     

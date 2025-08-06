@@ -34,11 +34,11 @@ pipeline {
         AWS_ACCOUNT_ID = '857736875915'  // Add your AWS account ID
         ENVIRONMENT = 'prod'
         TF_VAR_prefix = 'INX-PRD-USNV-'
-        ECR_REPOSITORY_BASE = '857736875915.dkr.ecr.us-east-1.amazonaws.com/inx-INX-PRD-USNV--app'
+        ECR_REPOSITORY_BASE = 'public.ecr.aws/your-alias/inx-INX-PRD-USNV--app'
         ECS_CLUSTER = 'INX-PRD-USNV-CLUSTER01'
         
         // Terraform backend configuration
-        TF_STATE_BUCKET = 'inx-prd-terraform-state-9015480'
+        TF_STATE_BUCKET = 'inx-prd-terraform-state'
         TF_STATE_KEY = 'terraform.tfstate'
         TF_LOCK_TABLE = 'inx-prd-tf-locks'
         

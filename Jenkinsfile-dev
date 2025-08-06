@@ -29,11 +29,11 @@ pipeline {
         AWS_ACCOUNT_ID = '857736875915'  // Add your AWS account ID
         ENVIRONMENT = 'dev'
         TF_VAR_prefix = 'INX-DEV-USNV-'
-        ECR_REPOSITORY_BASE = '857736875915.dkr.ecr.us-east-1.amazonaws.com/inx-INX-DEV-USNV--app'
+        ECR_REPOSITORY_BASE = 'public.ecr.aws/your-alias/inx-INX-DEV-USNV--app'
         ECS_CLUSTER = 'INX-DEV-USNV-CLUSTER01'
         
         // Terraform backend configuration
-        TF_STATE_BUCKET = 'inx-dev-terraform-state-9015480'
+        TF_STATE_BUCKET = 'inx-dev-terraform-state'
         TF_STATE_KEY = 'terraform.tfstate'
         TF_LOCK_TABLE = 'inx-dev-tf-locks'
         
@@ -78,9 +78,30 @@ pipeline {
         stage('🔐 AWS Authentication') {
             steps {
                 script {
-                    echo "🔐 Using direct AWS credentials for DEV environment..."
+                    echo "� Installing/Updating AWS CLI..."
                     
-                    withCredentials([aws(credentialsId: 'aws-jenkins-credentials', region: env.AWS_DEFAULT_REGION)]) {
+                    // Install AWS CLI v2 if not present or update if outdated
+                    sh '''
+                        # Check if AWS CLI is installed
+                        if ! command -v aws &> /dev/null; then
+                            echo "📥 Installing AWS CLI v2..."
+                            apt-get update -y
+                            apt-get install -y curl unzip
+                            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+                            unzip awscliv2.zip
+                            sudo ./aws/install
+                            rm -rf awscliv2.zip aws/
+                        else
+                            echo "✅ AWS CLI already installed"
+                        fi
+                        
+                        # Verify installation
+                        aws --version
+                    '''
+                    
+                    echo "🔐 Using AWS credentials for DEV environment..."
+                    
+                    withCredentials([aws(credentialsId: 'aws-jenkins-credentials')]) {
                         // Test AWS access
                         def callerIdentity = sh(
                             script: 'aws sts get-caller-identity --output json',
@@ -90,6 +111,9 @@ pipeline {
                         def identity = readJSON text: callerIdentity
                         echo "✅ AWS authenticated as: ${identity.Arn}"
                         echo "✅ Account ID: ${identity.Account}"
+                        
+                        // Verify access to S3 bucket
+                        sh "aws s3 ls s3://${env.TF_STATE_BUCKET}/ || echo 'Note: S3 bucket may not exist yet - will be created if needed'"
                     }
                 }
             }
@@ -101,42 +125,44 @@ pipeline {
                     script {
                         echo "📋 Analyzing Terraform configuration..."
                         
-                        // Initialize Terraform
-                        sh """
-                            terraform init \
-                                -backend-config="bucket=${env.TF_STATE_BUCKET}" \
-                                -backend-config="key=${env.TF_STATE_KEY}" \
-                                -backend-config="region=${env.AWS_DEFAULT_REGION}" \
-                                -backend-config="dynamodb_table=${env.TF_LOCK_TABLE}" \
-                                -reconfigure
-                        """
-                        
-                        // Generate plan
-                        def planOutput = sh(
-                            script: 'terraform plan -var-file=dev.tfvars -detailed-exitcode -no-color',
-                            returnStatus: true
-                        )
-                        
-                        env.PLAN_EXIT_CODE = planOutput.toString()
-                        
-                        if (planOutput == 0) {
-                            echo "✅ No infrastructure changes detected"
-                            env.HAS_CHANGES = 'false'
-                        } else if (planOutput == 2) {
-                            echo "📊 Infrastructure changes detected - generating detailed plan..."
-                            sh 'terraform plan -var-file=dev.tfvars -out=tfplan-dev'
+                        withCredentials([aws(credentialsId: 'aws-jenkins-credentials')]) {
+                            // Initialize Terraform
+                            sh """
+                                terraform init \
+                                    -backend-config="bucket=${env.TF_STATE_BUCKET}" \
+                                    -backend-config="key=${env.TF_STATE_KEY}" \
+                                    -backend-config="region=${env.AWS_DEFAULT_REGION}" \
+                                    -backend-config="dynamodb_table=${env.TF_LOCK_TABLE}" \
+                                    -reconfigure
+                            """
                             
-                            // Show what will change
-                            def planShow = sh(
-                                script: 'terraform show -no-color tfplan-dev',
-                                returnStdout: true
+                            // Generate plan
+                            def planOutput = sh(
+                                script: 'terraform plan -var-file=dev.tfvars -detailed-exitcode -no-color',
+                                returnStatus: true
                             )
                             
-                            echo "🔄 PLANNED CHANGES:"
-                            echo planShow
-                            env.HAS_CHANGES = 'true'
-                        } else {
-                            error "❌ Terraform plan failed with exit code: ${planOutput}"
+                            env.PLAN_EXIT_CODE = planOutput.toString()
+                            
+                            if (planOutput == 0) {
+                                echo "✅ No infrastructure changes detected"
+                                env.HAS_CHANGES = 'false'
+                            } else if (planOutput == 2) {
+                                echo "📊 Infrastructure changes detected - generating detailed plan..."
+                                sh 'terraform plan -var-file=dev.tfvars -out=tfplan-dev'
+                                
+                                // Show what will change
+                                def planShow = sh(
+                                    script: 'terraform show -no-color tfplan-dev',
+                                    returnStdout: true
+                                )
+                                
+                                echo "🔄 PLANNED CHANGES:"
+                                echo planShow
+                                env.HAS_CHANGES = 'true'
+                            } else {
+                                error "❌ Terraform plan failed with exit code: ${planOutput}"
+                            }
                         }
                     }
                 }
@@ -153,34 +179,36 @@ pipeline {
             steps {
                 dir('terraform') {
                     script {
-                        if (params.ACTION == 'apply') {
-                            echo "🏗️ Deploying infrastructure changes..."
-                            
-                            if (params.AUTO_APPROVE) {
-                                sh 'terraform apply -auto-approve tfplan-dev'
-                            } else {
-                                timeout(time: 10, unit: 'MINUTES') {
-                                    input message: 'Approve infrastructure deployment?', ok: 'Deploy'
+                        withCredentials([aws(credentialsId: 'aws-jenkins-credentials')]) {
+                            if (params.ACTION == 'apply') {
+                                echo "🏗️ Deploying infrastructure changes..."
+                                
+                                if (params.AUTO_APPROVE) {
+                                    sh 'terraform apply -auto-approve tfplan-dev'
+                                } else {
+                                    timeout(time: 10, unit: 'MINUTES') {
+                                        input message: 'Approve infrastructure deployment?', ok: 'Deploy'
+                                    }
+                                    sh 'terraform apply -auto-approve tfplan-dev'
                                 }
-                                sh 'terraform apply -auto-approve tfplan-dev'
+                                
+                                echo "✅ Infrastructure deployment completed successfully!"
+                                
+                                // Store outputs for later stages
+                                def outputs = sh(
+                                    script: 'terraform output -json',
+                                    returnStdout: true
+                                )
+                                writeFile file: 'terraform-outputs-dev.json', text: outputs
+                                archiveArtifacts artifacts: 'terraform-outputs-dev.json'
+                                
+                            } else if (params.ACTION == 'destroy') {
+                                echo "🗑️ Destroying infrastructure..."
+                                timeout(time: 5, unit: 'MINUTES') {
+                                    input message: 'Are you sure you want to DESTROY the infrastructure?', ok: 'Destroy'
+                                }
+                                sh 'terraform destroy -var-file=dev.tfvars -auto-approve'
                             }
-                            
-                            echo "✅ Infrastructure deployment completed successfully!"
-                            
-                            // Store outputs for later stages
-                            def outputs = sh(
-                                script: 'terraform output -json',
-                                returnStdout: true
-                            )
-                            writeFile file: 'terraform-outputs-dev.json', text: outputs
-                            archiveArtifacts artifacts: 'terraform-outputs-dev.json'
-                            
-                        } else if (params.ACTION == 'destroy') {
-                            echo "🗑️ Destroying infrastructure..."
-                            timeout(time: 5, unit: 'MINUTES') {
-                                input message: 'Are you sure you want to DESTROY the infrastructure?', ok: 'Destroy'
-                            }
-                            sh 'terraform destroy -var-file=dev.tfvars -auto-approve'
                         }
                     }
                 }
@@ -322,31 +350,33 @@ def buildAndPushImage(serviceName, contextPath) {
     echo "🐳 Building ${serviceName}..."
     
     try {
-        // Get ECR login token
-        sh '''
-            aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | \
-            docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com
-        '''
-        
-        // Build image
-        def imageTag = "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
-        def fullImageName = "${env.ECR_REPOSITORY_BASE}:${serviceName}-${imageTag}"
-        
-        dir(contextPath) {
+        withCredentials([aws(credentialsId: 'aws-jenkins-credentials')]) {
+            // Get Public ECR login token (us-east-1 only)
+            sh '''
+                aws ecr-public get-login-password --region us-east-1 | \
+                docker login --username AWS --password-stdin public.ecr.aws
+            '''
+            
+            // Build image
+            def imageTag = "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
+            def fullImageName = "${env.ECR_REPOSITORY_BASE}:${serviceName}-${imageTag}"
+            
+            dir(contextPath) {
+                sh """
+                    docker build -t ${serviceName}:latest .
+                    docker tag ${serviceName}:latest ${fullImageName}
+                    docker tag ${serviceName}:latest ${env.ECR_REPOSITORY_BASE}:${serviceName}-latest
+                """
+            }
+            
+            // Push to Public ECR
             sh """
-                docker build -t ${serviceName}:latest .
-                docker tag ${serviceName}:latest ${fullImageName}
-                docker tag ${serviceName}:latest ${env.ECR_REPOSITORY_BASE}:${serviceName}-latest
+                docker push ${fullImageName}
+                docker push ${env.ECR_REPOSITORY_BASE}:${serviceName}-latest
             """
+            
+            echo "✅ ${serviceName} image pushed successfully to Public ECR"
         }
-        
-        // Push to ECR
-        sh """
-            docker push ${fullImageName}
-            docker push ${env.ECR_REPOSITORY_BASE}:${serviceName}-latest
-        """
-        
-        echo "✅ ${serviceName} image pushed successfully"
         
     } catch (Exception e) {
         error "❌ Failed to build/push ${serviceName}: ${e.getMessage()}"
@@ -358,49 +388,51 @@ def deployECSService(serviceName) {
     echo "🚀 Deploying ${serviceName} to ECS..."
     
     try {
-        // Get network configuration from Terraform outputs  
-        def terraformOutputs = readJSON file: 'terraform/terraform-outputs-dev.json'
-        def privateSubnets = terraformOutputs.private_subnet_ids.value.join(',')
-        def securityGroupId = terraformOutputs.ecs_security_group_id.value
-        
-        // Check if service exists
-        def serviceExists = sh(
-            script: """
-                aws ecs describe-services \
-                    --cluster ${env.ECS_CLUSTER} \
-                    --services ${env.TF_VAR_prefix}${serviceName} \
-                    --region ${env.AWS_DEFAULT_REGION} \
-                    --query 'services[0].status' \
-                    --output text 2>/dev/null || echo 'NONE'
-            """,
-            returnStdout: true
-        ).trim()
-        
-        if (serviceExists == 'NONE' || serviceExists == 'INACTIVE') {
-            echo "Creating new ECS service for ${serviceName}..."
-            // Create service logic here
-            sh """
-                aws ecs create-service \
-                    --cluster ${env.ECS_CLUSTER} \
-                    --service-name ${env.TF_VAR_prefix}${serviceName} \
-                    --task-definition ${env.TF_VAR_prefix}${serviceName} \
-                    --desired-count 1 \
-                    --launch-type FARGATE \
-                    --network-configuration 'awsvpcConfiguration={subnets=[${privateSubnets}],securityGroups=[${securityGroupId}],assignPublicIp=DISABLED}' \
-                    --region ${env.AWS_DEFAULT_REGION}
-            """
-        } else {
-            echo "Updating existing ECS service for ${serviceName}..."
-            sh """
-                aws ecs update-service \
-                    --cluster ${env.ECS_CLUSTER} \
-                    --service ${env.TF_VAR_prefix}${serviceName} \
-                    --task-definition ${env.TF_VAR_prefix}${serviceName} \
-                    --region ${env.AWS_DEFAULT_REGION}
-            """
+        withCredentials([aws(credentialsId: 'aws-jenkins-credentials')]) {
+            // Get network configuration from Terraform outputs  
+            def terraformOutputs = readJSON file: 'terraform/terraform-outputs-dev.json'
+            def privateSubnets = terraformOutputs.private_subnet_ids.value.join(',')
+            def securityGroupId = terraformOutputs.ecs_security_group_id.value
+            
+            // Check if service exists
+            def serviceExists = sh(
+                script: """
+                    aws ecs describe-services \
+                        --cluster ${env.ECS_CLUSTER} \
+                        --services ${env.TF_VAR_prefix}${serviceName} \
+                        --region ${env.AWS_DEFAULT_REGION} \
+                        --query 'services[0].status' \
+                        --output text 2>/dev/null || echo 'NONE'
+                """,
+                returnStdout: true
+            ).trim()
+            
+            if (serviceExists == 'NONE' || serviceExists == 'INACTIVE') {
+                echo "Creating new ECS service for ${serviceName}..."
+                // Create service logic here
+                sh """
+                    aws ecs create-service \
+                        --cluster ${env.ECS_CLUSTER} \
+                        --service-name ${env.TF_VAR_prefix}${serviceName} \
+                        --task-definition ${env.TF_VAR_prefix}${serviceName} \
+                        --desired-count 1 \
+                        --launch-type FARGATE \
+                        --network-configuration 'awsvpcConfiguration={subnets=[${privateSubnets}],securityGroups=[${securityGroupId}],assignPublicIp=DISABLED}' \
+                        --region ${env.AWS_DEFAULT_REGION}
+                """
+            } else {
+                echo "Updating existing ECS service for ${serviceName}..."
+                sh """
+                    aws ecs update-service \
+                        --cluster ${env.ECS_CLUSTER} \
+                        --service ${env.TF_VAR_prefix}${serviceName} \
+                        --task-definition ${env.TF_VAR_prefix}${serviceName} \
+                        --region ${env.AWS_DEFAULT_REGION}
+                """
+            }
+            
+            echo "✅ ${serviceName} deployment initiated"
         }
-        
-        echo "✅ ${serviceName} deployment initiated"
         
     } catch (Exception e) {
         error "❌ Failed to deploy ${serviceName} to ECS: ${e.getMessage()}"

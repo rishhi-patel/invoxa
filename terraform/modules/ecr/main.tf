@@ -1,34 +1,24 @@
 ## === modules/ecr/main.tf ===
 
-resource "aws_ecr_repository" "this" {
-  name                 = var.repo_name
-  image_tag_mutability = "MUTABLE"
+# Public ECR repository (free tier)
+resource "aws_ecrpublic_repository" "this" {
+  repository_name = var.repo_name
 
-  image_scanning_configuration {
-    scan_on_push = true
+  catalog_data {
+    description = "INVOXA ${upper(split("-", var.repo_name)[1])} Environment - Container Images"
+    about_text  = "Container images for INVOXA microservices application"
+    usage_text  = "docker pull public.ecr.aws/${data.aws_caller_identity.current.account_id}/${var.repo_name}:latest"
+    
+    architectures     = ["x86-64"]
+    operating_systems = ["Linux"]
   }
 
   tags = var.tags
 }
 
-resource "aws_ecr_lifecycle_policy" "this" {
-  repository = aws_ecr_repository.this.name
+# Get current AWS account ID
+# Get current AWS account ID
+data "aws_caller_identity" "current" {}
 
-  policy = jsonencode({
-    rules = [
-      {
-        rulePriority = 1
-        description  = "Expire untagged images older than 14 days"
-        selection = {
-          tagStatus = "untagged"
-          countType = "sinceImagePushed"
-          countUnit = "days"
-          countNumber = 14
-        }
-        action = {
-          type = "expire"
-        }
-      }
-    ]
-  })
-}
+# Note: Public ECR repositories don't support lifecycle policies
+# Images in public repositories don't incur storage costs like private ECR

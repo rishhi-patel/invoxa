@@ -75,6 +75,27 @@ pipeline {
         stage('AWS Authentication') {
             steps {
                 script {
+                    echo "Installing and configuring AWS CLI..."
+                    
+                    // Install AWS CLI if not present
+                    sh '''
+                        if [ ! -f /var/jenkins_home/bin/aws ]; then
+                            echo "Installing AWS CLI..."
+                            mkdir -p /var/jenkins_home/bin
+                            cd /tmp
+                            curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+                            unzip -q awscliv2.zip
+                            ./aws/install --install-dir /var/jenkins_home/aws-cli --bin-dir /var/jenkins_home/bin
+                            rm -rf awscliv2.zip aws/
+                            echo "AWS CLI installed successfully"
+                        else
+                            echo "AWS CLI already installed"
+                        fi
+                    '''
+                    
+                    // Add AWS CLI to PATH for this pipeline
+                    env.PATH = "/var/jenkins_home/bin:${env.PATH}"
+                    
                     echo "Using AWS credentials for DEV environment..."
                     
                     withCredentials([aws(credentialsId: 'aws-jenkins-credentials')]) {

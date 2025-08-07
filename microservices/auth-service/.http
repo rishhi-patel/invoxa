@@ -1,5 +1,5 @@
 @baseUrl = http://localhost:3002/api/auth
-@TOKEN= eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4ODI5YjM2ZDM1NmY5MDBlYzFjNWNkZiIsImVtYWlsIjoicmlzaGhpQGV4YW1wbGUuY29tIiwiaWF0IjoxNzUzMzg5ODg5LCJleHAiOjE3NTMzOTM0ODl9.vd9gRNcKrcPfMK34Yids_wuZaoJHeJ9k2EoZZboBZsI
+@TOKEN= eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4OTUwZDU1OTAyY2MzZTdlYWJhNzQ5NyIsImVtYWlsIjoicmlzaGhpQGV4YW1wbGUxLmNvbSIsImlhdCI6MTc1NDU5OTI0Nn0.YQ8soDNBIhFuI-0U0b-7F3HIDau_O7UTRg_Vwe-my9k
 
 ### REGISTER a new user
 POST {{baseUrl}}/register
@@ -7,7 +7,7 @@ Content-Type: application/json
 
 {
     "name": "Rishikumar",
-    "email": "rishhi@example.com",
+    "email": "rishhi@example1.com",
     "password": "supersecret"
 }
 
@@ -18,7 +18,7 @@ POST {{baseUrl}}/login
 Content-Type: application/json
 
 {
-    "email": "rishhi@example.com",
+    "email": "rishhi@example1.com",
     "password": "supersecret"
 }
 

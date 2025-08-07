@@ -1,12 +1,30 @@
-import express, { Request, Response } from "express"
+import express from "express"
+import dotenv from "dotenv"
+import helmet from "helmet"
+import cors from "cors"
+import authRoutes from "./routes/auth.routes"
+import { connectToDB } from "./utils/db"
+import { errorHandler, requestLogger } from "./middleware/logger.middleware"
+
+dotenv.config()
 
 const app = express()
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 3002
+app.use(cors())
+app.use(requestLogger)
+app.use(errorHandler)
+app.use(express.json())
 
-app.get("/", (_req: Request, res: Response) => {
-  res.send("Hello from Auth Service!")
-})
+app.use(helmet())
 
-app.listen(PORT, () => {
-  console.log(`Service running on port ${PORT}`)
-})
+app.use("/api/auth", authRoutes)
+
+if (process.env.NODE_ENV !== "test") {
+  connectToDB().then(() => {
+    app.listen(PORT, () => {
+      console.log(`🚀 Client service running on http://localhost:${PORT}`)
+    })
+  })
+}
+
+export default app

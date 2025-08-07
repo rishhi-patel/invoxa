@@ -9,6 +9,6 @@ tags = {
   ENV       = "DEV"
   TERRAFORM = "TRUE"
 }
-prefix = "INX-DEV-USNV-"
-bucket_name      = "inx-dev-terraform-state-config"
-lock_table_name  = "inx-dev-tf-locks"
+prefix          = "INX-DEV-USNV-"
+bucket_name     = "inx-dev-terraform-state-config"
+lock_table_name = "inx-dev-tf-locks"

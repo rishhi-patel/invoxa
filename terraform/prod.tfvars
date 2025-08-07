@@ -9,6 +9,6 @@ tags = {
   ENV       = "PROD"
   TERRAFORM = "TRUE"
 }
-prefix = "INX-PRD-USNV-"
-bucket_name      = "inx-prd-terraform-state-config"
-lock_table_name  = "inx-prd-tf-locks"
+prefix          = "INX-PRD-USNV-"
+bucket_name     = "inx-prd-terraform-state-config"
+lock_table_name = "inx-prd-tf-locks"

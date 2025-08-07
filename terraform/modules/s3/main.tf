@@ -2,7 +2,7 @@
 
 # S3 bucket for invoice documents and attachments
 resource "aws_s3_bucket" "invoxa_documents" {
-  bucket = "${var.prefix}invoxa-documents-${random_id.bucket_suffix.hex}"
+  bucket = "${lower(var.prefix)}invoxa-documents-${random_id.bucket_suffix.hex}"
 
   tags = var.tags
 }

@@ -31,6 +31,7 @@ pipeline {
         TF_VAR_prefix = 'INX-DEV-USNV-'
         ECR_REPOSITORY_BASE = 'public.ecr.aws/i5k8d9h4'
         ECS_CLUSTER = 'INX-DEV-USNV-CLUSTER01'
+        ECR_PREFIX = 'inxdevusnv' // Lowercase prefix for ECR repository names
         
         // Terraform backend configuration
         TF_STATE_BUCKET = 'inx-dev-terraform-state-config'
@@ -332,23 +333,24 @@ def buildAndPushImage(serviceName, contextPath) {
             
             // Build image
             def imageTag = "${env.BUILD_NUMBER}-${env.GIT_COMMIT.take(7)}"
-            def fullImageName = "${env.ECR_REPOSITORY_BASE}/${serviceName}:${imageTag}"
+            def ecrRepoName = "${env.ECR_PREFIX}${serviceName}"
+            def fullImageName = "${env.ECR_REPOSITORY_BASE}/${ecrRepoName}:${imageTag}"
             
             dir(contextPath) {
                 sh """
                     docker build -t ${serviceName}:latest .
                     docker tag ${serviceName}:latest ${fullImageName}
-                    docker tag ${serviceName}:latest ${env.ECR_REPOSITORY_BASE}/${serviceName}:latest
+                    docker tag ${serviceName}:latest ${env.ECR_REPOSITORY_BASE}/${ecrRepoName}:latest
                 """
             }
             
             // Push to Public ECR
             sh """
                 docker push ${fullImageName}
-                docker push ${env.ECR_REPOSITORY_BASE}/${serviceName}:latest
+                docker push ${env.ECR_REPOSITORY_BASE}/${ecrRepoName}:latest
             """
             
-            echo "${serviceName} image pushed successfully to Public ECR"
+            echo "${serviceName} image pushed successfully to Public ECR as ${ecrRepoName}"
         }
         
     } catch (Exception e) {

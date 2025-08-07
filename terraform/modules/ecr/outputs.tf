@@ -1,16 +1,16 @@
 ## === modules/ecr/outputs.tf ===
 
-output "ecr_repository_url" {
-  description = "URL of the Public ECR repository"
-  value       = aws_ecrpublic_repository.this.repository_uri
+output "ecr_repository_urls" {
+  description = "URLs of the Public ECR repositories"
+  value       = { for k, v in aws_ecrpublic_repository.services : k => v.repository_uri }
 }
 
-output "ecr_repository_name" {
-  description = "Name of the Public ECR repository"
-  value       = aws_ecrpublic_repository.this.repository_name
+output "ecr_repository_names" {
+  description = "Names of the Public ECR repositories"
+  value       = { for k, v in aws_ecrpublic_repository.services : k => v.repository_name }
 }
 
 output "ecr_registry_id" {
-  description = "Registry ID for the Public ECR repository"
-  value       = aws_ecrpublic_repository.this.registry_id
+  description = "Registry ID for the Public ECR repositories"
+  value       = values(aws_ecrpublic_repository.services)[0].registry_id
 }

@@ -52,10 +52,9 @@ module "alb" {
 }
 
 module "ecr" {
-  source    = "./modules/ecr"
-  repo_name = "inx-${lower(var.prefix)}-app"
-  prefix    = var.prefix
-  tags      = var.tags
+  source = "./modules/ecr"
+  prefix = var.prefix
+  tags   = var.tags
 }
 
 # RDS MODULE - COMMENTED OUT - USING EXTERNAL MONGODB INSTEAD

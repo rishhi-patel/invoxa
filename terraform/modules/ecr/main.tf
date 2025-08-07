@@ -1,19 +1,27 @@
 ## === modules/ecr/main.tf ===
 
-# Public ECR repository (free tier)
-resource "aws_ecrpublic_repository" "this" {
-  repository_name = var.repo_name
+# Public ECR repositories (free tier) - one for each microservice
+locals {
+  services = ["auth-service", "client-service", "invoice-service", "notification-service", "payment-service"]
+}
+
+resource "aws_ecrpublic_repository" "services" {
+  for_each = toset(local.services)
+  
+  repository_name = "${lower(replace(var.prefix, "-", ""))}${each.value}"
 
   catalog_data {
-    description = "INVOXA ${upper(split("-", var.repo_name)[1])} Environment - Container Images"
-    about_text  = "Container images for INVOXA microservices application"
-    usage_text  = "docker pull public.ecr.aws/${data.aws_caller_identity.current.account_id}/${var.repo_name}:latest"
+    description = "INVOXA ${upper(replace(var.prefix, "-", ""))} Environment - ${each.value} Container Images"
+    about_text  = "Container images for INVOXA microservices application - ${each.value}"
+    usage_text  = "docker pull public.ecr.aws/${data.aws_caller_identity.current.account_id}/${lower(replace(var.prefix, "-", ""))}${each.value}:latest"
     
     architectures     = ["x86-64"]
     operating_systems = ["Linux"]
   }
 
-  tags = var.tags
+  tags = merge(var.tags, {
+    Service = each.value
+  })
 }
 
 # Get current AWS account ID

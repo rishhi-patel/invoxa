@@ -1,0 +1,41 @@
+name: Test Auth Service
+
+on:
+  pull_request:
+    paths:
+      - "microservices/auth-service/**"
+    branches:
+      - main
+      - dev
+
+jobs:
+  test:
+    name: Run Jest Tests
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: microservices/auth-service
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: microservices/auth-service/package-lock.json
+
+      - name: 📦 Install dependencies
+        run: npm install
+
+      - name: 🧪 Run tests with coverage
+        run: npm test --coverage
+
+      - name: 📊 Upload test coverage (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-service-coverage
+          path: microservices/auth-service/coverage/

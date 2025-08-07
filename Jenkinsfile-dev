@@ -1,10 +1,6 @@
 pipeline {
     agent any
     
-    tools {
-        terraform 'terraform' // Make sure Terraform tool is configured in Jenkins
-    }
-    
     parameters {
         choice(
             name: 'ACTION',
@@ -200,23 +196,12 @@ pipeline {
             when {
                 expression { params.DEPLOY_CONTAINERS && (params.ACTION == 'apply' || params.ACTION == 'plan') }
             }
-            steps {
-                script {
-                    // Check Docker permissions and try to fix them
-                    try {
-                        sh 'docker --version'
-                        echo "Docker is available, checking permissions..."
-                        sh 'docker info >/dev/null 2>&1 || (echo "Docker permission issue detected. Attempting to fix..." && sudo usermod -aG docker jenkins && sudo chmod 666 /var/run/docker.sock)'
-                    } catch (Exception e) {
-                        echo "Warning: Docker setup issue - ${e.getMessage()}"
-                        echo "Continuing with manual Docker commands..."
-                    }
-                }
-            }
             parallel {
                 stage('Auth Service') {
                     steps {
                         script {
+                            // Check Docker permissions before building
+                            checkDockerPermissions()
                             buildAndPushImage('auth-service', 'microservices/auth-service')
                         }
                     }
@@ -224,6 +209,8 @@ pipeline {
                 stage('Client Service') {
                     steps {
                         script {
+                            // Check Docker permissions before building
+                            checkDockerPermissions()
                             buildAndPushImage('client-service', 'microservices/client-service')
                         }
                     }
@@ -231,6 +218,8 @@ pipeline {
                 stage('Invoice Service') {
                     steps {
                         script {
+                            // Check Docker permissions before building
+                            checkDockerPermissions()
                             buildAndPushImage('invoice-service', 'microservices/invoice-service')
                         }
                     }
@@ -238,6 +227,8 @@ pipeline {
                 stage('Notification Service') {
                     steps {
                         script {
+                            // Check Docker permissions before building
+                            checkDockerPermissions()
                             buildAndPushImage('notification-service', 'microservices/notification-service')
                         }
                     }
@@ -245,6 +236,8 @@ pipeline {
                 stage('Payment Service') {
                     steps {
                         script {
+                            // Check Docker permissions before building
+                            checkDockerPermissions()
                             buildAndPushImage('payment-service', 'microservices/payment-service')
                         }
                     }
@@ -336,6 +329,32 @@ pipeline {
         cleanup {
             cleanWs()
         }
+    }
+}
+
+// Helper function to check Docker permissions
+def checkDockerPermissions() {
+    try {
+        sh 'docker --version'
+        echo "Docker is available, checking permissions..."
+        
+        def dockerTest = sh(
+            script: 'docker info >/dev/null 2>&1',
+            returnStatus: true
+        )
+        
+        if (dockerTest != 0) {
+            echo "Docker permission issue detected. Attempting to fix..."
+            sh '''
+                sudo usermod -aG docker jenkins || echo "Cannot add user to docker group"
+                sudo chmod 666 /var/run/docker.sock || echo "Cannot change socket permissions"
+            '''
+        } else {
+            echo "Docker permissions are working correctly"
+        }
+    } catch (Exception e) {
+        echo "Warning: Docker setup issue - ${e.getMessage()}"
+        echo "Continuing with Docker commands..."
     }
 }
 

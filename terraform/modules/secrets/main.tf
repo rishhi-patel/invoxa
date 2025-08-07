@@ -12,7 +12,7 @@ resource "aws_secretsmanager_secret" "mongodb_credentials" {
 resource "aws_secretsmanager_secret_version" "mongodb_credentials" {
   secret_id = aws_secretsmanager_secret.mongodb_credentials.id
   secret_string = jsonencode({
-    mongodb_uri = var.mongodb_uri
+    mongodb_uri   = var.mongodb_uri
     database_name = var.database_name
   })
 }

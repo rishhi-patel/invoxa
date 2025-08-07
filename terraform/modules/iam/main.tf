@@ -2,9 +2,9 @@
 
 # Execution Role for ECS Tasks (needed to pull images, send logs, etc.)
 resource "aws_iam_role" "ecs_task_execution" {
-  name = "${var.prefix}ECS_EXECUTION_ROLE"
+  name               = "${var.prefix}ECS_EXECUTION_ROLE"
   assume_role_policy = data.aws_iam_policy_document.ecs_task_assume_role.json
-  tags = var.tags
+  tags               = var.tags
 }
 
 resource "aws_iam_role_policy_attachment" "ecs_execution_policy" {
@@ -19,9 +19,9 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_logs" {
 
 # ECS Task Role (for application-level permissions)
 resource "aws_iam_role" "ecs_task_role" {
-  name = "${var.prefix}ECS_TASK_ROLE"
+  name               = "${var.prefix}ECS_TASK_ROLE"
   assume_role_policy = data.aws_iam_policy_document.ecs_task_assume_role.json
-  tags = var.tags
+  tags               = var.tags
 }
 
 # Custom policy for Secrets Manager access

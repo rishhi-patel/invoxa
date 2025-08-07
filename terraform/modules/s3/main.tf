@@ -43,7 +43,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "invoxa_documents" {
   rule {
     id     = "invoice_lifecycle"
     status = "Enabled"
-    
+
     filter {
       prefix = ""
     }
@@ -59,7 +59,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "invoxa_documents" {
     }
 
     expiration {
-      days = 2555  # 7 years for compliance
+      days = 2555 # 7 years for compliance
     }
   }
 }

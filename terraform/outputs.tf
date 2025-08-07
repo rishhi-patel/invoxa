@@ -12,8 +12,12 @@ output "alb_dns_name" {
   value = module.alb.alb_dns_name
 }
 
-output "ecr_repo_url" {
-  value = module.ecr.ecr_repository_url
+output "ecr_repository_urls" {
+  value = module.ecr.ecr_repository_urls
+}
+
+output "ecr_repository_names" {
+  value = module.ecr.ecr_repository_names
 }
 
 # Database endpoint - COMMENTED OUT - USING EXTERNAL MONGODB

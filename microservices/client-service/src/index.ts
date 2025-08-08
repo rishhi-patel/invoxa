@@ -16,7 +16,6 @@ app.use(errorHandler)
 app.get("/", (_req, res) => res.send("Client Service is running 🚀"))
 app.use("/api/clients", clientRoutes)
 app.get("/logger-test", (req, res) => {
-  console.log("Triggering logger")
   res.status(200).send("OK")
 })
 

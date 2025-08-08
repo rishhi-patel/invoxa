@@ -11,7 +11,7 @@ invoxa/
 │   ├── client-service/
 │   ├── invoice-service/
 │   ├── payment-service/
-│   └── notification-service/
+│   └── insights-service/
 ├── frontend/                # Frontend
 ├── infra/                   # Terraform/CDK Infrastructure setup
 └── docker-compose.yaml      # Local development composition
@@ -44,7 +44,7 @@ docker-compose up --build
 
 Built with ❤️ by **EXOcode Labs**
 
-- **notification-service**: Sends email notifications with attached invoices
+- **insights-service**: Sends email notifications with attached invoices
 
 ## Technologies Used
 
@@ -68,7 +68,7 @@ Each service will be available on the following ports:
 - client-service: `http://localhost:5001`
 - invoice-service: `http://localhost:3002`
 - payment-service: `http://localhost:5002`
-- notification-service: `http://localhost:3003`
+- insights-service: `http://localhost:3003`
 
 ## Folder Structure
 
@@ -79,7 +79,7 @@ invoxa/
 │   ├── client-service/
 │   ├── invoice-service/
 │   ├── payment-service/
-│   └── notification-service/
+│   └── insights-service/
 ├── frontend/
 ├── infra/
 ├── docker-compose.yaml

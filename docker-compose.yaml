@@ -16,7 +16,7 @@ services:
     build: ./microservices/payment-service
     ports:
       - "5001:5000"
-  notification-service:
-    build: ./microservices/notification-service
+  insights-service:
+    build: ./microservices/insights-service
     ports:
       - "3004:3000"

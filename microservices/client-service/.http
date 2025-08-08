@@ -1,9 +1,13 @@
 ### Health check
 GET http://localhost:3001/
+Authorization: Bearer {{TOKEN}}
+
+@TOKEN= eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4OTUwZDU1OTAyY2MzZTdlYWJhNzQ5NyIsImVtYWlsIjoicmlzaGhpQGV4YW1wbGUxLmNvbSIsImlhdCI6MTc1NDYwNjAyNn0.lnc-lg1lSNbU605IA5cVUmPNc6KIu-dgUrUOXFuWYL0
 
 ### Create a new client
 POST http://localhost:3001/api/clients
 Content-Type: application/json
+Authorization: Bearer {{TOKEN}}
 
 {
   "name": "Rishhi Patel",
@@ -14,15 +18,18 @@ Content-Type: application/json
 
 ### Get all clients
 GET http://localhost:3001/api/clients
+Authorization: Bearer {{TOKEN}}
 
 @client_id = 171438b5-57d3-455e-98b4-59734d013828
 
 ### Get a single client by ID
 GET http://localhost:3001/api/clients/{{client_id}}
+Authorization: Bearer {{TOKEN}}
 
 ### Update a client
 PUT http://localhost:3001/api/clients/{{client_id}}
 Content-Type: application/json
+Authorization: Bearer {{TOKEN}}
 
 {
   "name": "Rishhi Exo",
@@ -33,3 +40,4 @@ Content-Type: application/json
 
 ### Delete a client
 DELETE http://localhost:3001/api/clients/{{client_id}}
+Authorization: Bearer {{TOKEN}}

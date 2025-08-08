@@ -11,9 +11,12 @@
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.540.0",
     "@aws-sdk/lib-dynamodb": "^3.540.0",
+    "@types/jsonwebtoken": "^9.0.10",
+    "axios": "^1.11.0",
     "chalk": "^4.1.2",
     "dotenv": "^17.2.0",
     "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.16.4",
     "uuid": "^9.0.1"
   },

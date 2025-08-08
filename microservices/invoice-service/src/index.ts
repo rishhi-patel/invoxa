@@ -1,12 +1,33 @@
-import express, { Request, Response } from "express"
+import express from "express"
+import dotenv from "dotenv"
+import helmet from "helmet"
+import cors from "cors"
+import { connectToDB } from "./utils/db"
+import { requestLogger, errorHandler } from "./middleware/logger.middleware"
+import invoiceRoutes from "./routes/invoice.routes"
+
+dotenv.config()
 
 const app = express()
-const PORT = process.env.PORT || 3000
+const PORT = process.env.PORT || 3003
 
-app.get("/", (_req: Request, res: Response) => {
-  res.send("Hello from Invoice-service!")
-})
+app.use(express.json())
+app.use(cors())
+app.use(helmet())
+app.use(requestLogger)
 
-app.listen(PORT, () => {
-  console.log(`Service running on port ${PORT}`)
-})
+app.get("/", (_req, res) => res.send("Invoice Service is running 🧾🚀"))
+app.use("/api/invoices", invoiceRoutes)
+
+// Error handler last
+app.use(errorHandler)
+
+if (process.env.NODE_ENV !== "test") {
+  connectToDB().then(() => {
+    app.listen(PORT, () => {
+      console.log(`🧾 Invoice service running on http://localhost:${PORT}`)
+    })
+  })
+}
+
+export default app

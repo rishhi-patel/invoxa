@@ -1,0 +1,39 @@
+@TOKEN= eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4OTUwZDU1OTAyY2MzZTdlYWJhNzQ5NyIsImVtYWlsIjoicmlzaGhpQGV4YW1wbGUxLmNvbSIsImlhdCI6MTc1NDYwNjAyNn0.lnc-lg1lSNbU605IA5cVUmPNc6KIu-dgUrUOXFuWYL0
+
+### Create invoice
+POST http://localhost:3003/api/invoices
+Authorization: Bearer {{TOKEN}}
+Content-Type: application/json
+
+{
+  "clientId": "64c1e9f4aa0e6c2e0cc00001",
+  "number": "INV-2025-0001",
+  "items": [
+    { "name": "Design", "quantity": 10, "unitPrice": 50 },
+    { "name": "Dev", "quantity": 20, "unitPrice": 75 }
+  ],
+  "taxRate": 13,
+  "currency": "USD",
+  "dueDate": "2025-09-01T00:00:00.000Z",
+  "notes": "Thanks!"
+}
+
+### List
+GET http://localhost:3003/api/invoices
+Authorization: Bearer {{TOKEN}}
+
+@id=689592ac3a0b5a67e65f4a79
+### Get by id
+GET http://localhost:3003/api/invoices/{{id}}
+Authorization: Bearer {{TOKEN}}
+
+### Update
+PUT http://localhost:3003/api/invoices/{{id}}
+Authorization: Bearer {{TOKEN}}
+Content-Type: application/json
+
+{ "status": "SENT" }
+
+### Delete
+DELETE http://localhost:3003/api/invoices/{{id}}
+Authorization: Bearer {{TOKEN}}

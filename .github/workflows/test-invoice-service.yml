@@ -1,0 +1,41 @@
+name: Test Invoice Service
+
+on:
+  pull_request:
+    paths:
+      - "microservices/invoice-service/**"
+    branches:
+      - main
+      - dev
+
+jobs:
+  test:
+    name: Run Jest Tests
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: microservices/invoice-service
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "yarn"
+          cache-dependency-path: microservices/invoice-service/yarn.lock
+
+      - name: 📦 Install dependencies
+        run: yarn install
+
+      - name: 🧪 Run tests with coverage
+        run: yarn test --coverage
+
+      - name: 📊 Upload test coverage (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: invoice-service-coverage
+          path: microservices/invoice-service/coverage/

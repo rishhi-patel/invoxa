@@ -10,7 +10,12 @@ export const authenticate = async (
   res: Response,
   next: NextFunction
 ) => {
-  if (process.env.NODE_ENV === "test") return next()
+  if (process.env.NODE_ENV === "test") {
+    req.user = process.env.TEST_USER_ID
+      ? { id: process.env.TEST_USER_ID }
+      : { id: "507f1f77bcf86cd799439011" }
+    return next()
+  }
 
   const authHeader = req.headers.authorization
   if (!authHeader?.startsWith("Bearer ")) {

@@ -5,14 +5,23 @@ import { sendMail, invoiceStatusTemplate } from "../utils/resend"
 
 type AuthedReq = Request & { user?: { id?: string } }
 
+function getUserId(req: AuthedReq, res: Response): string | undefined {
+  if (!req?.user || !req.user.id) {
+    res.status(401).json({ message: "Unauthorized" })
+    return undefined
+  }
+  return req.user.id
+}
+
 export const createInvoice = async (req: AuthedReq, res: Response) => {
   try {
-    if (!req?.user) return res.status(401).json({ message: "Unauthorized" })
+    const userId = getUserId(req, res)
+    if (!userId) return
 
     const client = await fetchClientLite(req.body.clientId)
     const inv = new InvoiceModel({
       ...req.body,
-      createdBy: req?.user,
+      createdBy: userId,
       clientSnapshot: client
         ? { name: client.name, email: client.email, company: client.company }
         : undefined,
@@ -26,18 +35,20 @@ export const createInvoice = async (req: AuthedReq, res: Response) => {
 }
 
 export const listInvoices = async (req: AuthedReq, res: Response) => {
-  if (!req?.user) return res.status(401).json({ message: "Unauthorized" })
-  const list = await InvoiceModel.find({ createdBy: req?.user }).sort({
+  const userId = getUserId(req, res)
+  if (!userId) return
+  const list = await InvoiceModel.find({ createdBy: userId }).sort({
     createdAt: -1,
   })
   return res.json(list)
 }
 
 export const getInvoiceById = async (req: AuthedReq, res: Response) => {
-  if (!req?.user) return res.status(401).json({ message: "Unauthorized" })
+  const userId = getUserId(req, res)
+  if (!userId) return
   const doc = await InvoiceModel.findOne({
     _id: req.params.id,
-    createdBy: req?.user,
+    createdBy: userId,
   })
   if (!doc) return res.status(404).json({ message: "Invoice not found" })
   return res.json(doc)
@@ -45,10 +56,11 @@ export const getInvoiceById = async (req: AuthedReq, res: Response) => {
 
 export const updateInvoice = async (req: AuthedReq, res: Response) => {
   try {
-    if (!req?.user) return res.status(401).json({ message: "Unauthorized" })
+    const userId = getUserId(req, res)
+    if (!userId) return
     const doc = await InvoiceModel.findOne({
       _id: req.params.id,
-      createdBy: req?.user,
+      createdBy: userId,
     })
     if (!doc) return res.status(404).json({ message: "Invoice not found" })
 
@@ -96,20 +108,22 @@ export const updateInvoice = async (req: AuthedReq, res: Response) => {
 }
 
 export const deleteInvoice = async (req: AuthedReq, res: Response) => {
-  if (!req?.user) return res.status(401).json({ message: "Unauthorized" })
+  const userId = getUserId(req, res)
+  if (!userId) return
   const deleted = await InvoiceModel.findOneAndDelete({
     _id: req.params.id,
-    createdBy: req?.user,
+    createdBy: userId,
   })
   if (!deleted) return res.status(404).json({ message: "Invoice not found" })
   return res.status(204).send()
 }
 
 export const notifyInvoice = async (req: AuthedReq, res: Response) => {
-  if (!req?.user) return res.status(401).json({ message: "Unauthorized" })
+  const userId = getUserId(req, res)
+  if (!userId) return
   const inv = await InvoiceModel.findOne({
     _id: req.params.id,
-    createdBy: req?.user,
+    createdBy: userId,
   })
   if (!inv) return res.status(404).json({ message: "Invoice not found" })
   if (!inv.clientSnapshot?.email)

@@ -1,6 +1,6 @@
 @TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4OTUwZDU1OTAyY2MzZTdlYWJhNzQ5NyIsImVtYWlsIjoicmlzaGhpQGV4YW1wbGUxLmNvbSIsImlhdCI6MTc1NDcxNjQ4NH0.kM62vCZDFkDYvvOoTMaUJ0mmRJSH95hQB4RC6a9zF78
 @CLIENT_ID=689576e4c8be9a3481fd7934
-@INVOICE_ID=68a0c3e7-1b2f-4d8b-9c5f-6d8e1f2b3c4d
+@INVOICE_ID=6896eec0c13d68fa4acd3ee8
 ### Create (createdBy comes from JWT)
 POST http://localhost:3003/api/invoices
 Authorization: Bearer {{TOKEN}}
@@ -24,7 +24,11 @@ PUT http://localhost:3003/api/invoices/{{INVOICE_ID}}
 Authorization: Bearer {{TOKEN}}
 Content-Type: application/json
 
-{ "status": "SENT" }
+{
+  "clientId": "{{CLIENT_ID}}",
+  "status": "SENT"
+}
+
 
 ### Manual resend
 POST http://localhost:3003/api/invoices/{{INVOICE_ID}}/notify

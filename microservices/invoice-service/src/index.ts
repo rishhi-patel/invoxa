@@ -7,7 +7,6 @@ import { requestLogger, errorHandler } from "./middleware/logger.middleware"
 import invoiceRoutes from "./routes/invoice.routes"
 
 dotenv.config()
-
 const app = express()
 const PORT = process.env.PORT || 3003
 

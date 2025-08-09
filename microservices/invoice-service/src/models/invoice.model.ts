@@ -16,6 +16,11 @@ const invoiceSchema = new mongoose.Schema(
       ref: "Client",
       required: true,
     },
+    createdBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
     number: { type: String, required: true, unique: true }, // e.g., INV-2025-0001
     items: { type: [itemSchema], default: [] },
     currency: { type: String, default: "USD" },

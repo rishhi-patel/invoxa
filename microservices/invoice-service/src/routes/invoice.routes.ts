@@ -6,11 +6,10 @@ import {
   getInvoiceById,
   updateInvoice,
   deleteInvoice,
+  notifyInvoice,
 } from "../controllers/invoice.controller"
 
 const router = Router()
-
-// Protect all invoice routes
 router.use(authenticate)
 
 router.post("/", createInvoice)
@@ -18,5 +17,8 @@ router.get("/", listInvoices)
 router.get("/:id", getInvoiceById)
 router.put("/:id", updateInvoice)
 router.delete("/:id", deleteInvoice)
+
+// manual resend
+router.post("/:id/notify", notifyInvoice)
 
 export default router

@@ -1,0 +1,35 @@
+@TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4OTUwZDU1OTAyY2MzZTdlYWJhNzQ5NyIsImVtYWlsIjoicmlzaGhpQGV4YW1wbGUxLmNvbSIsImlhdCI6MTc1NDcxNjQ4NH0.kM62vCZDFkDYvvOoTMaUJ0mmRJSH95hQB4RC6a9zF78
+@CLIENT_ID=689576e4c8be9a3481fd7934
+@INVOICE_ID=6896eec0c13d68fa4acd3ee8
+### Create (createdBy comes from JWT)
+POST http://localhost:3003/api/invoices
+Authorization: Bearer {{TOKEN}}
+Content-Type: application/json
+
+{
+  "clientId": "{{CLIENT_ID}}",
+  "number": "INV-2025-0002",
+  "items": [
+    { "name": "API Dev", "quantity": 8, "unitPrice": 80 }
+  ],
+  "taxRate": 13
+}
+
+### List only my invoices
+GET http://localhost:3003/api/invoices
+Authorization: Bearer {{TOKEN}}
+
+### Update status -> triggers email
+PUT http://localhost:3003/api/invoices/{{INVOICE_ID}}
+Authorization: Bearer {{TOKEN}}
+Content-Type: application/json
+
+{
+  "clientId": "{{CLIENT_ID}}",
+  "status": "SENT"
+}
+
+
+### Manual resend
+POST http://localhost:3003/api/invoices/{{INVOICE_ID}}/notify
+Authorization: Bearer {{TOKEN}}

@@ -14,6 +14,12 @@ declare global {
 const isOwner = (client: any, user: any) =>
   client.createdBy?.toString() === user
 
+export const getClientSnapshotById = async (id: string) => {
+  return ClientModel.findById(id)
+    .select("name email company") // only what invoice-service needs
+    .lean() // plain JSON object, no circular refs
+}
+
 export const createClient = async (req: Request, res: Response) => {
   try {
     const client = new ClientModel({ ...req.body, createdBy: req.user })

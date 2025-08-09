@@ -1,177 +1,130 @@
 import { Request, Response } from "express"
 import { InvoiceModel } from "../models/invoice.model"
+import { fetchClientLite } from "../utils/clients"
 import { sendMail, invoiceStatusTemplate } from "../utils/resend"
 
-type AuthedReq = Request & {
-  user?: { id?: string; email?: string; role?: string }
-}
+type AuthedReq = Request & { user?: { id?: string } }
 
 export const createInvoice = async (req: AuthedReq, res: Response) => {
   try {
-    if (!req.user) return res.status(401).json({ message: "Unauthorized" })
+    if (!req?.user) return res.status(401).json({ message: "Unauthorized" })
 
-    const payload = {
+    const client = await fetchClientLite(req.body.clientId)
+    const inv = new InvoiceModel({
       ...req.body,
-      createdBy: req.user,
-    }
-    console.log("Creating invoice with payload:", payload)
+      createdBy: req?.user,
+      clientSnapshot: client
+        ? { name: client.name, email: client.email, company: client.company }
+        : undefined,
+    })
 
-    const invoice = new InvoiceModel(payload)
-    const saved = await invoice.save()
-
-    console.log("Invoice created:", saved)
-    // return populated client info
-    const populated = await InvoiceModel.findById(saved._id)
-      .populate({ path: "clientId", select: "name email company" })
-      .exec()
-    console
-    res.status(201).json(populated)
-  } catch (error) {
-    res.status(500).json({ message: `Failed to create invoice: ${error}` })
+    const saved = await inv.save()
+    return res.status(201).json(saved)
+  } catch (e) {
+    return res.status(500).json({ message: `Failed to create invoice: ${e}` })
   }
 }
 
 export const listInvoices = async (req: AuthedReq, res: Response) => {
-  try {
-    if (!req?.user) return res.status(401).json({ message: "Unauthorized" })
-
-    const list = await InvoiceModel.find({ createdBy: req.user })
-      .sort({ createdAt: -1 })
-      .populate({ path: "clientId", select: "name email company" })
-
-    res.json(list)
-  } catch (error) {
-    res.status(500).json({ message: `Failed to fetch invoices: ${error}` })
-  }
+  if (!req?.user) return res.status(401).json({ message: "Unauthorized" })
+  const list = await InvoiceModel.find({ createdBy: req?.user }).sort({
+    createdAt: -1,
+  })
+  return res.json(list)
 }
 
 export const getInvoiceById = async (req: AuthedReq, res: Response) => {
-  try {
-    if (!req?.user) return res.status(401).json({ message: "Unauthorized" })
-
-    const doc = await InvoiceModel.findOne({
-      _id: req.params.id,
-      createdBy: req.user,
-    }).populate({ path: "clientId", select: "name email company" })
-
-    if (!doc) return res.status(404).json({ message: "Invoice not found" })
-    res.json(doc)
-  } catch (error) {
-    res.status(500).json({ message: `Failed to fetch invoice: ${error}` })
-  }
+  if (!req?.user) return res.status(401).json({ message: "Unauthorized" })
+  const doc = await InvoiceModel.findOne({
+    _id: req.params.id,
+    createdBy: req?.user,
+  })
+  if (!doc) return res.status(404).json({ message: "Invoice not found" })
+  return res.json(doc)
 }
 
 export const updateInvoice = async (req: AuthedReq, res: Response) => {
   try {
     if (!req?.user) return res.status(401).json({ message: "Unauthorized" })
-
     const doc = await InvoiceModel.findOne({
       _id: req.params.id,
-      createdBy: req.user,
+      createdBy: req?.user,
     })
-
     if (!doc) return res.status(404).json({ message: "Invoice not found" })
 
-    // track status before update
     const prevStatus = doc.status
 
-    // apply changes
-    const fields = [
-      "items",
-      "taxRate",
-      "currency",
-      "status",
-      "notes",
-      "issuedAt",
-      "dueDate",
-      "number",
-      "clientId",
-    ]
-    for (const k of fields) {
-      if (k in req.body) (doc as any)[k] = (req.body as any)[k]
+    // merge updates
+    Object.assign(doc, req.body)
+
+    // refresh snapshot if clientId changed
+    if (req.body.clientId) {
+      const client = await fetchClientLite(req.body.clientId)
+      doc.clientSnapshot = client
+        ? { name: client.name, email: client.email, company: client.company }
+        : undefined
     }
+
     // @ts-ignore
     doc.recalculateTotals()
     const saved = await doc.save()
 
-    // populate for response & email
-    const populated = await InvoiceModel.findById(saved._id).populate({
-      path: "clientId",
-      select: "name email company",
-    })
-
-    // if status changed, notify client
-    if (req.body.status && req.body.status !== prevStatus) {
-      const client = (populated as any)?.clientId
-      if (client?.email) {
-        const html = invoiceStatusTemplate({
-          clientName: client.name,
-          invoiceNumber: populated?.number!,
-          status: populated?.status!,
-          total: populated?.total!,
-        })
-        // fire and forget; do not block response
-        sendMail({
-          to: client.email,
-          subject: `Invoice ${populated?.number} is now ${populated?.status}`,
-          html,
-        }).catch(console.error)
-      }
+    // email on status change
+    if (
+      req.body.status &&
+      req.body.status !== prevStatus &&
+      saved.clientSnapshot?.email
+    ) {
+      const html = invoiceStatusTemplate({
+        clientName: saved.clientSnapshot.name ?? undefined,
+        invoiceNumber: saved.number,
+        status: saved.status,
+        total: saved.total!,
+      })
+      // fire-and-forget
+      sendMail({
+        to: saved.clientSnapshot.email,
+        subject: `Invoice ${saved.number} is now ${saved.status}`,
+        html,
+      }).catch(console.error)
     }
 
-    res.json(populated)
-  } catch (error) {
-    res.status(500).json({ message: `Failed to update invoice: ${error}` })
+    return res.json(saved)
+  } catch (e) {
+    return res.status(500).json({ message: `Failed to update invoice: ${e}` })
   }
 }
 
 export const deleteInvoice = async (req: AuthedReq, res: Response) => {
-  try {
-    if (!req?.user) return res.status(401).json({ message: "Unauthorized" })
-
-    const deleted = await InvoiceModel.findOneAndDelete({
-      _id: req.params.id,
-      createdBy: req.user,
-    })
-
-    if (!deleted) return res.status(404).json({ message: "Invoice not found" })
-    res.status(204).send()
-  } catch (error) {
-    res.status(500).json({ message: `Failed to delete invoice: ${error}` })
-  }
+  if (!req?.user) return res.status(401).json({ message: "Unauthorized" })
+  const deleted = await InvoiceModel.findOneAndDelete({
+    _id: req.params.id,
+    createdBy: req?.user,
+  })
+  if (!deleted) return res.status(404).json({ message: "Invoice not found" })
+  return res.status(204).send()
 }
 
-// Manual resend endpoint (optional)
 export const notifyInvoice = async (req: AuthedReq, res: Response) => {
-  try {
-    if (!req?.user) return res.status(401).json({ message: "Unauthorized" })
+  if (!req?.user) return res.status(401).json({ message: "Unauthorized" })
+  const inv = await InvoiceModel.findOne({
+    _id: req.params.id,
+    createdBy: req?.user,
+  })
+  if (!inv) return res.status(404).json({ message: "Invoice not found" })
+  if (!inv.clientSnapshot?.email)
+    return res.status(400).json({ message: "Client has no email" })
 
-    const inv = await InvoiceModel.findOne({
-      _id: req.params.id,
-      createdBy: req.user,
-    }).populate({ path: "clientId", select: "name email company" })
-
-    if (!inv) return res.status(404).json({ message: "Invoice not found" })
-
-    const client = (inv as any).clientId
-    if (!client?.email)
-      return res.status(400).json({ message: "Client has no email" })
-
-    const html = invoiceStatusTemplate({
-      clientName: client.name,
-      invoiceNumber: inv.number,
-      status: inv.status,
-      total: inv.total,
-    })
-
-    await sendMail({
-      to: client.email,
-      subject: `Invoice ${inv.number} is now ${inv.status}`,
-      html,
-    })
-
-    res.json({ sent: true })
-  } catch (error) {
-    res.status(500).json({ message: `Failed to notify: ${error}` })
-  }
+  const html = invoiceStatusTemplate({
+    clientName: inv.clientSnapshot.name ?? undefined,
+    invoiceNumber: inv.number,
+    status: inv.status,
+    total: inv.total!,
+  })
+  await sendMail({
+    to: inv.clientSnapshot.email,
+    subject: `Invoice ${inv.number} is now ${inv.status}`,
+    html,
+  })
+  return res.json({ sent: true })
 }

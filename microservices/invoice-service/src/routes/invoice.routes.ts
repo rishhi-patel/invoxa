@@ -17,8 +17,6 @@ router.get("/", listInvoices)
 router.get("/:id", getInvoiceById)
 router.put("/:id", updateInvoice)
 router.delete("/:id", deleteInvoice)
-
-// manual resend
 router.post("/:id/notify", notifyInvoice)
 
 export default router

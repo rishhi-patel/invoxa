@@ -7,37 +7,25 @@ const resend = new Resend(process.env.RESEND_API_KEY)
 
 type SendArgs = { to: string; subject: string; html: string }
 
-export const sendMail = async ({ to, subject, html }: SendArgs) => {
-  if (!process.env.RESEND_API_KEY || !process.env.FROM_EMAIL) {
-    console.warn(
-      "[Resend] Skipping email: missing RESEND_API_KEY or FROM_EMAIL"
-    )
-    return
-  }
-  await resend.emails.send({
-    from: process.env.FROM_EMAIL!,
-    to,
-    subject,
-    html,
-  })
+export const sendMail = async (opts: {
+  to: string
+  subject: string
+  html: string
+}) => {
+  if (!process.env.RESEND_API_KEY || !process.env.FROM_EMAIL) return
+  await resend.emails.send({ from: process.env.FROM_EMAIL!, ...opts })
 }
-
-export const invoiceStatusTemplate = (opts: {
+export const invoiceStatusTemplate = (p: {
   clientName?: string
   invoiceNumber: string
   status: string
   total: number
-}) => {
-  const { clientName = "there", invoiceNumber, status, total } = opts
-  return `
-    <div style="font-family:Arial,sans-serif">
-      <h2>Invoice ${invoiceNumber} ${
-    status === "SENT" ? "has been sent" : `is now ${status}`
-  }</h2>
-      <p>Hi ${clientName},</p>
-      <p>Your invoice <b>${invoiceNumber}</b> is now <b>${status}</b>.</p>
-      <p>Total: <b>${total.toFixed(2)}</b></p>
-      <p>Thank you,<br/>Invoxa</p>
-    </div>
-  `
-}
+}) => `
+  <div style="font-family:Arial,sans-serif">
+    <h2>Invoice ${p.invoiceNumber} is now ${p.status}</h2>
+    <p>Hi ${p.clientName || "there"},</p>
+    <p>Your invoice <b>${p.invoiceNumber}</b> is now <b>${p.status}</b>.</p>
+    <p>Total: <b>${p.total.toFixed(2)}</b></p>
+    <p>— Invoxa</p>
+  </div>
+`

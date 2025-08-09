@@ -10,7 +10,7 @@ pipeline {
         booleanParam(
             name: 'AUTO_APPROVE',
             defaultValue: false,
-            description: 'Auto-approve Terraform apply (use with caution)'
+            description: 'Auto-approve Terraform apply'
         )
         booleanParam(
             name: 'DEPLOY_CONTAINERS',
@@ -31,7 +31,7 @@ pipeline {
         TF_VAR_prefix = 'INX-DEV-USNV-'
         ECR_REPOSITORY_BASE = 'public.ecr.aws/i5k8d9h4'
         ECS_CLUSTER = 'INX-DEV-USNV-CLUSTER01'
-        ECR_PREFIX = 'inxdevusnv' // Lowercase prefix for ECR repository names
+        ECR_PREFIX = 'inxdevusnv' 
         
         // Terraform backend configuration
         TF_STATE_BUCKET = 'inx-dev-terraform-state-config'

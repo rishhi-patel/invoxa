@@ -12,13 +12,14 @@ const app = express()
 const PORT = process.env.PORT || 3002
 app.use(cors())
 app.use(requestLogger)
-app.use(errorHandler)
+
 app.use(express.json())
 
 app.use(helmet())
 
 app.use("/api/auth", authRoutes)
 
+app.use(errorHandler)
 if (process.env.NODE_ENV !== "test") {
   connectToDB().then(() => {
     app.listen(PORT, () => {

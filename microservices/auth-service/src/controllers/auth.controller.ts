@@ -1,9 +1,22 @@
-import { Request, Response } from "express"
+import { Request, Response, NextFunction } from "express"
 import bcrypt from "bcrypt"
 import { UserModel } from "../models/user.model"
 import { decodeJwsToken, encodeJwsToken } from "../utils/jwt"
 
 const JWT_SECRET = process.env.JWT_SECRET || "secret123"
+
+// Centralized error handler
+const handleError = (
+  res: Response,
+  error: unknown,
+  message = "Internal server error",
+  status = 500
+) => {
+  console.error(error)
+  res
+    .status(status)
+    .json({ message, error: error instanceof Error ? error.message : error })
+}
 
 export const register = async (req: Request, res: Response) => {
   const { email, password } = req.body
@@ -20,7 +33,7 @@ export const register = async (req: Request, res: Response) => {
 
     res.status(201).json({ token, message: "User registered successfully" })
   } catch (err) {
-    res.status(500).json({ message: "Registration failed", error: err })
+    handleError(res, err, "Registration failed")
   }
 }
 
@@ -36,7 +49,7 @@ export const login = async (req: Request, res: Response) => {
     const token = encodeJwsToken({ id: user._id, email: user.email })
     res.json({ token })
   } catch (err) {
-    res.status(500).json({ message: "Login failed", error: err })
+    handleError(res, err, "Login failed")
   }
 }
 
@@ -47,7 +60,7 @@ export const validate = async (req: Request, res: Response) => {
   try {
     const decoded = decodeJwsToken(token)
     res.json({ valid: true, decoded })
-  } catch {
-    res.status(401).json({ valid: false })
+  } catch (err) {
+    handleError(res, err, "Token validation failed", 401)
   }
 }

@@ -5,87 +5,87 @@ import { ClientModel } from "../models/client.model"
 declare global {
   namespace Express {
     interface Request {
-      user?: string | any
+      user?: { id: string } | any
     }
   }
 }
 
 // Helper to check ownership
-const isOwner = (client: any, user: any) =>
-  client.createdBy?.toString() === user
+const isOwner = (client: any, userId: string) =>
+  client.createdBy?.toString() === userId
+
+// Helper to get client by id and check ownership
+const getClientIfOwner = async (req: Request) => {
+  const client = await ClientModel.findById(req.params.id)
+  if (!client) {
+    const error: any = new Error("Client not found")
+    error.status = 404
+    throw error
+  }
+  if (!isOwner(client, req.user.id)) {
+    const error: any = new Error("Forbidden")
+    error.status = 403
+    throw error
+  }
+  return client
+}
 
 export const getClientSnapshotById = async (id: string) => {
-  return ClientModel.findById(id)
-    .select("name email company") // only what invoice-service needs
-    .lean() // plain JSON object, no circular refs
+  return ClientModel.findById(id).select("name email company").lean()
 }
 
 export const createClient = async (req: Request, res: Response) => {
   try {
-    const client = new ClientModel({ ...req.body, createdBy: req.user })
+    const client = new ClientModel({ ...req.body, createdBy: req.user.id })
     const savedClient = await client.save()
     res.status(201).json(savedClient)
   } catch (error) {
-    res.status(500).json({ message: `Failed to create client: ${error}` })
+    res
+      .status(500)
+      .json({ message: `Failed to create client: ${(error as Error).message}` })
   }
 }
 
 export const getAllClients = async (req: Request, res: Response) => {
   try {
-    const clients = await ClientModel.find({ createdBy: req.user })
+    const clients = await ClientModel.find({ createdBy: req.user.id })
     res.json(clients)
   } catch (error) {
-    res.status(500).json({ message: `Failed to fetch clients: ${error}` })
+    res
+      .status(500)
+      .json({ message: `Failed to fetch clients: ${(error as Error).message}` })
   }
 }
 
 export const getClientById = async (req: Request, res: Response) => {
   try {
-    const client = await ClientModel.findById(req.params.id)
-    if (!client) {
-      return res.status(404).json({ message: "Client not found" })
-    }
-    if (!isOwner(client, req.user)) {
-      return res.status(403).json({ message: "Forbidden" })
-    }
+    const client = await getClientIfOwner(req)
     res.json(client)
-  } catch (error) {
-    res.status(500).json({ message: `Failed to fetch client: ${error}` })
+  } catch (error: any) {
+    res.status(error.status || 500).json({ message: error.message })
   }
 }
 
 export const updateClient = async (req: Request, res: Response) => {
   try {
-    const client = await ClientModel.findById(req.params.id)
-    if (!client) {
-      return res.status(404).json({ message: "Client not found" })
-    }
-    if (!isOwner(client, req.user)) {
-      return res.status(403).json({ message: "Forbidden" })
-    }
+    await getClientIfOwner(req)
     const updatedClient = await ClientModel.findByIdAndUpdate(
       req.params.id,
       req.body,
       { new: true }
     )
     res.json(updatedClient)
-  } catch (error) {
-    res.status(500).json({ message: `Failed to update client: ${error}` })
+  } catch (error: any) {
+    res.status(error.status || 500).json({ message: error.message })
   }
 }
 
 export const deleteClient = async (req: Request, res: Response) => {
   try {
-    const client = await ClientModel.findById(req.params.id)
-    if (!client) {
-      return res.status(404).json({ message: "Client not found" })
-    }
-    if (!isOwner(client, req.user)) {
-      return res.status(403).json({ message: "Forbidden" })
-    }
+    await getClientIfOwner(req)
     await ClientModel.findByIdAndDelete(req.params.id)
     return res.status(204).send()
-  } catch (error) {
-    res.status(500).json({ message: `Failed to delete client: ${error}` })
+  } catch (error: any) {
+    res.status(error.status || 500).json({ message: error.message })
   }
 }

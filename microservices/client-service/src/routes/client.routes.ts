@@ -2,6 +2,8 @@
 import { Router } from "express"
 import { serviceAuth } from "../middleware/serviceAuth"
 import { getClientSnapshotById } from "../services/client.service"
+import * as clientService from "../services/client.service"
+import { authenticate } from "../middleware/auth.middleware"
 
 const router = Router()
 
@@ -22,5 +24,11 @@ router.get("/internal/:id", serviceAuth, async (req, res) => {
     return res.status(500).json({ message: "Failed to fetch client" })
   }
 })
+
+router.post("/", authenticate, clientService.createClient)
+router.get("/", authenticate, clientService.getAllClients)
+router.get("/:id", authenticate, clientService.getClientById)
+router.put("/:id", authenticate, clientService.updateClient)
+router.delete("/:id", authenticate, clientService.deleteClient)
 
 export default router

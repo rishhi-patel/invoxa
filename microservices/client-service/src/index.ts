@@ -11,13 +11,14 @@ const PORT = process.env.PORT || 3001
 
 app.use(express.json())
 app.use(requestLogger)
-app.use(errorHandler)
 
 app.get("/", (_req, res) => res.send("Client Service is running 🚀"))
 app.use("/api/clients", clientRoutes)
 app.get("/logger-test", (req, res) => {
   res.status(200).send("OK")
 })
+
+app.use(errorHandler)
 
 if (process.env.NODE_ENV !== "test") {
   connectToDB().then(() => {

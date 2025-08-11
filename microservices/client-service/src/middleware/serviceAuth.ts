@@ -5,6 +5,5 @@ export function serviceAuth(req: Request, res: Response, next: NextFunction) {
 
   const got = req.header("x-service-token")
   if (!expected || got === expected) return next()
-  console.log(expected, got)
   return res.status(401).send({ error: "Unauthorized service" })
 }

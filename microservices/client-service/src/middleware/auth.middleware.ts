@@ -29,7 +29,7 @@ export const authenticate = async (
       return res.status(401).json({ error: "Unauthorized: invalid token" })
     }
 
-    req.user = data.decoded ?? data.id ?? {}
+    req.user = data.decoded ?? data ?? {}
     next()
   } catch (err) {
     console.error("Authentication error:", err)

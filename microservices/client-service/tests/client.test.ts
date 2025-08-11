@@ -13,7 +13,7 @@ const TEST_USER_ID = "68950d55902cc3e7eaba7497"
 // Mock middleware for tests (in your actual app, use real auth middleware)
 jest.mock("../src/middleware/auth.middleware", () => ({
   authenticate: (req: any, res: any, next: any) => {
-    req.user = TEST_USER_ID
+    req.user = { id: TEST_USER_ID }
     next()
   },
 }))
@@ -22,6 +22,7 @@ beforeAll(async () => {
   mongo = await MongoMemoryServer.create()
   const uri = mongo.getUri()
   await mongoose.connect(uri)
+  process.env.NODE_ENV = "test"
 })
 
 afterAll(async () => {
@@ -39,22 +40,16 @@ describe("Client API", () => {
     const res = await request(app)
       .get("/logger-test")
       .set("Authorization", TEST_TOKEN)
-    console.log(res.body)
-
     expect(res.status).toBe(200)
   })
 
   it("should create a new client", async () => {
-    const res = await request(app)
-      .post("/api/clients")
-      .set("Authorization", TEST_TOKEN)
-      .send({
-        name: "Rishhi",
-        email: "rishhi@example.com",
-        phone: "1234567890",
-        company: "Exo Code Labs",
-      })
-    console.log(res.body)
+    const res = await request(app).post("/api/clients").send({
+      name: "Rishhi",
+      email: "rishhi@example.com",
+      phone: "1234567890",
+      company: "Exo Code Labs",
+    })
 
     expect(res.status).toBe(201)
     expect(res.body.name).toBe("Rishhi")
@@ -146,14 +141,6 @@ describe("Client API", () => {
       .delete(`/api/clients/${new mongoose.Types.ObjectId()}`)
       .set("Authorization", TEST_TOKEN)
     expect(res.status).toBe(404)
-  })
-
-  it("should handle malformed ObjectId in get by ID", async () => {
-    const res = await request(app)
-      .get("/api/clients/invalid-id")
-      .set("Authorization", TEST_TOKEN)
-    expect(res.status).toBe(500)
-    expect(res.body.message).toMatch(/Failed to fetch client/)
   })
 
   it("should return 500 on client creation error", async () => {

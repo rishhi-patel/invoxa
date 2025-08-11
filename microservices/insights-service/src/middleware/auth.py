@@ -4,15 +4,18 @@ from typing import Callable
 from flask import request, jsonify, g
 import jwt
 
-
-JWT_SECRET = os.getenv("JWT_SECRET", "change-me")  # match auth-service
 JWT_ALGOS = ["HS256"]
+
+
+def _jwt_secret():
+    # fetch fresh each request so tests / env-switching work
+    return os.getenv("JWT_SECRET", "change-me")
 
 
 def auth_required(fn: Callable):
     @wraps(fn)
     def wrapper(*args, **kwargs):
-        # test/dev bypass (optional)
+        # optional test bypass if you set INSIGHTS_TEST_USER_ID
         test_uid = os.getenv("INSIGHTS_TEST_USER_ID")
         if test_uid and os.getenv("FLASK_ENV") == "testing":
             g.user_id = test_uid
@@ -24,9 +27,8 @@ def auth_required(fn: Callable):
 
         token = auth.split(" ", 1)[1]
         try:
-            payload = jwt.decode(token, JWT_SECRET, algorithms=JWT_ALGOS)
-            # expect your auth-service to put user id in `id`
-            g.user_id = str(payload.get("id"))
+            payload = jwt.decode(token, _jwt_secret(), algorithms=JWT_ALGOS)
+            g.user_id = str(payload.get("id") or "")
             if not g.user_id:
                 return jsonify({"message": "Unauthorized"}), 401
         except jwt.ExpiredSignatureError:

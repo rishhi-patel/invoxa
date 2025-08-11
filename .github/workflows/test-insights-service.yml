@@ -1,12 +1,11 @@
+# .github/workflows/test-insights-service.yml
 name: Test Insights Service
 
 on:
   pull_request:
     paths:
       - "microservices/insights-service/**"
-    branches:
-      - main
-      - dev
+    branches: [main, dev]
 
 jobs:
   test:
@@ -16,6 +15,13 @@ jobs:
     defaults:
       run:
         working-directory: microservices/insights-service
+
+    env:
+      FLASK_ENV: testing
+      JWT_SECRET: secret123
+      # Provide a harmless Mongo URI so db.py can import
+      MONGO_URI: mongodb://127.0.0.1:27017/invoxa
+      MONGO_DB: invoxa
 
     steps:
       - name: ⬇️ Checkout code
@@ -32,9 +38,16 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          # optional if you want coverage reports:
           pip install pytest-cov
 
       - name: 🧪 Run tests (with coverage)
         run: |
-          pytest -q
+          pytest --maxfail=1 --disable-warnings \
+            --cov=src --cov-report=term-missing --cov-report=xml
+
+      - name: 📊 Upload coverage (optional)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: insights-service-coverage
+          path: microservices/insights-service/coverage.xml

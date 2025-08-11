@@ -42,12 +42,4 @@ jobs:
 
       - name: 🧪 Run tests (with coverage)
         run: |
-          pytest --maxfail=1 --disable-warnings \
-            --cov=src --cov-report=term-missing --cov-report=xml
-
-      - name: 📊 Upload coverage (optional)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: insights-service-coverage
-          path: microservices/insights-service/coverage.xml
+          pytest -q

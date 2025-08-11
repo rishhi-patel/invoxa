@@ -1,0 +1,40 @@
+name: Test Insights Service
+
+on:
+  pull_request:
+    paths:
+      - "microservices/insights-service/**"
+    branches:
+      - main
+      - dev
+
+jobs:
+  test:
+    name: Run Pytest
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: microservices/insights-service
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: microservices/insights-service/requirements.txt
+
+      - name: 📦 Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          # optional if you want coverage reports:
+          pip install pytest-cov
+
+      - name: 🧪 Run tests (with coverage)
+        run: |
+          pytest -q

@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server"
-import { setAuthCookie } from "../../_utils/auth"
 
 const AUTH_URL = process.env.AUTH_SERVICE_URL!
 
@@ -26,9 +25,7 @@ export async function POST(req: Request) {
         { status: 500 }
       )
     }
-    console.log(data)
 
-    setAuthCookie(data.token)
     return NextResponse.json({ token: data.token ?? null })
   } catch (e: any) {
     return NextResponse.json(

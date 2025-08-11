@@ -1,14 +1,24 @@
 "use client"
+
 import { create } from "zustand"
 
+export type User = { id: string; email: string }
+
 type AuthState = {
-  user: { id: string; email: string } | null
-  setUser: (u: AuthState["user"]) => void
+  user: User | null
+  token: string | null
+  setUser: (u: User | null) => void
+  setToken: (t: string | null) => void
   clear: () => void
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
+  token: null,
   setUser: (u) => set({ user: u }),
-  clear: () => set({ user: null }),
+  setToken: (t) => set({ token: t }),
+  clear: () => {
+    localStorage.removeItem("auth_token")
+    set({ user: null, token: null })
+  },
 }))

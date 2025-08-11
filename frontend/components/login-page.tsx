@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -15,36 +15,25 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Building2, Mail, Lock, User } from "lucide-react"
-import {
-  useRecentActivity,
-  useRevenueTrends,
-  useSummary,
-} from "@/hooks/useInsights"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/hooks/useAuth"
 
-interface LoginPageProps {
-  onLogin: () => void
-}
-
-export function LoginPage({ onLogin }: LoginPageProps) {
+export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
-
-  const { data: summary, isLoading: l1 } = useSummary()
-  const { data: trends, isLoading: l2 } = useRevenueTrends(6)
-  const { data: activity, isLoading: l3 } = useRecentActivity(10)
-
-  console.log("Summary:", summary)
-
-  if (l1 || l2 || l3) return <div className="p-6">Loading…</div>
+  const { login, loading } = useAuth({ autoHydrate: false })
+  const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    // Simulate login delay
-    setTimeout(() => {
-      setIsLoading(false)
-      onLogin()
-    }, 1000)
+    if (await login("rishhi@example1.com", "supersecret")) {
+      router.push("/")
+    }
   }
+
+  useEffect(() => {
+    setIsLoading(loading)
+  }, [loading])
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">

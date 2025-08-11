@@ -1,5 +1,7 @@
 "use client"
 
+import { useAuthStore } from "@/lib/auth-store"
+
 export async function api<T = any>(
   url: string,
   init?: RequestInit

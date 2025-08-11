@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
-import { authHeader, json, errorJson } from "../_utils/auth"
-import { api } from "@/lib/http"
+import { authFrom, json, errorJson } from "../_utils/auth"
+import { forward } from "@/lib/fetcher"
 
 const BASE = process.env.CLIENT_SERVICE_URL!
 
@@ -13,7 +13,7 @@ export async function GET(req: Request) {
     : `${BASE}/api/clients`
 
   try {
-    const data = await api(target, { headers: await authHeader() })
+    const data = await forward(target, { headers: authFrom(req) })
     return NextResponse.json(data)
   } catch (e: any) {
     const { status, body } = errorJson(e)
@@ -25,9 +25,9 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const data = await api(`${BASE}/api/clients`, {
+    const data = await forward(`${BASE}/api/clients`, {
       method: "POST",
-      headers: await authHeader(),
+      headers: authFrom(req),
       ...json(body),
     })
     return NextResponse.json(data, { status: 201 })

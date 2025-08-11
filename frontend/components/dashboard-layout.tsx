@@ -8,10 +8,26 @@ import { ClientsPage } from "@/components/clients-page"
 import { InvoicesPage } from "@/components/invoices-page"
 import { PaymentsPage } from "@/components/payments-page"
 import { NotificationsPage } from "@/components/notifications-page"
+import { useEffect } from "react"
 
 export function DashboardLayout() {
-  const [currentPage, setCurrentPage] = useState("dashboard")
+  const [currentPage, setCurrentPage] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("currentPage") || "dashboard"
+    }
+    return "dashboard"
+  })
   const [sidebarOpen, setSidebarOpen] = useState(true)
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      console.log("Current page:", currentPage)
+
+      localStorage.setItem("currentPage", currentPage)
+    }
+  }, [])
+
+  console.log(currentPage)
 
   const renderPage = () => {
     switch (currentPage) {

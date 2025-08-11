@@ -1,6 +1,6 @@
+import { forward } from "@/lib/fetcher"
 import { NextResponse } from "next/server"
-import { authHeader, json, errorJson } from "../../_utils/auth"
-import { api } from "@/lib/http"
+import { authFrom, json, errorJson } from "../../_utils/auth"
 
 const BASE = process.env.CLIENT_SERVICE_URL!
 
@@ -9,8 +9,8 @@ type Ctx = { params: { id: string } }
 // GET /api/clients/:id
 export async function GET(_: Request, { params }: Ctx) {
   try {
-    const data = await api(`${BASE}/api/clients/${params.id}`, {
-      headers: await authHeader(),
+    const data = await forward(`${BASE}/api/clients/${params.id}`, {
+      headers: authFrom(_),
     })
     return NextResponse.json(data)
   } catch (e: any) {
@@ -23,9 +23,9 @@ export async function GET(_: Request, { params }: Ctx) {
 export async function PUT(req: Request, { params }: Ctx) {
   try {
     const body = await req.json()
-    const data = await api(`${BASE}/api/clients/${params.id}`, {
+    const data = await forward(`${BASE}/api/clients/${params.id}`, {
       method: "PUT",
-      headers: await authHeader(),
+      headers: authFrom(req),
       ...json(body),
     })
     return NextResponse.json(data)
@@ -38,9 +38,9 @@ export async function PUT(req: Request, { params }: Ctx) {
 // DELETE /api/clients/:id
 export async function DELETE(_: Request, { params }: Ctx) {
   try {
-    await api(`${BASE}/api/clients/${params.id}`, {
+    await forward(`${BASE}/api/clients/${params.id}`, {
       method: "DELETE",
-      headers: await authHeader(),
+      headers: authFrom(_),
     })
     return new NextResponse(null, { status: 204 })
   } catch (e: any) {

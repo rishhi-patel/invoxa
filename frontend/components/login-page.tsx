@@ -4,11 +4,22 @@ import type React from "react"
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Building2, Mail, Lock, User } from "lucide-react"
+import {
+  useRecentActivity,
+  useRevenueTrends,
+  useSummary,
+} from "@/hooks/useInsights"
 
 interface LoginPageProps {
   onLogin: () => void
@@ -16,6 +27,14 @@ interface LoginPageProps {
 
 export function LoginPage({ onLogin }: LoginPageProps) {
   const [isLoading, setIsLoading] = useState(false)
+
+  const { data: summary, isLoading: l1 } = useSummary()
+  const { data: trends, isLoading: l2 } = useRevenueTrends(6)
+  const { data: activity, isLoading: l3 } = useRecentActivity(10)
+
+  console.log("Summary:", summary)
+
+  if (l1 || l2 || l3) return <div className="p-6">Loading…</div>
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -36,14 +55,20 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               <Building2 className="w-6 h-6 text-white" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Invoxa</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">Professional invoicing made simple</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Invoxa
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">
+            Professional invoicing made simple
+          </p>
         </div>
 
         <Card className="shadow-xl border-0">
           <CardHeader className="space-y-1">
             <CardTitle className="text-2xl text-center">Welcome back</CardTitle>
-            <CardDescription className="text-center">Enter your credentials to access your dashboard</CardDescription>
+            <CardDescription className="text-center">
+              Enter your credentials to access your dashboard
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="login" className="w-full">
@@ -94,21 +119,39 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                     <Label htmlFor="name">Full Name</Label>
                     <div className="relative">
                       <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input id="name" type="text" placeholder="John Doe" className="pl-10" required />
+                      <Input
+                        id="name"
+                        type="text"
+                        placeholder="John Doe"
+                        className="pl-10"
+                        required
+                      />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-email">Email</Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input id="signup-email" type="email" placeholder="john@example.com" className="pl-10" required />
+                      <Input
+                        id="signup-email"
+                        type="email"
+                        placeholder="john@example.com"
+                        className="pl-10"
+                        required
+                      />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="signup-password">Password</Label>
                     <div className="relative">
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                      <Input id="signup-password" type="password" placeholder="••••••••" className="pl-10" required />
+                      <Input
+                        id="signup-password"
+                        type="password"
+                        placeholder="••••••••"
+                        className="pl-10"
+                        required
+                      />
                     </div>
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
@@ -124,7 +167,9 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           </CardContent>
         </Card>
 
-        <div className="text-center mt-8 text-sm text-gray-600 dark:text-gray-400">Built with ❤️ by EXOcode Labs</div>
+        <div className="text-center mt-8 text-sm text-gray-600 dark:text-gray-400">
+          Built with ❤️ by EXOcode Labs
+        </div>
       </div>
     </div>
   )

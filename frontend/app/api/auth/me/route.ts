@@ -5,6 +5,8 @@ const AUTH_URL = process.env.AUTH_SERVICE_URL!
 
 export async function GET() {
   const headers = await authHeader()
+  console.log("Headers for auth validation:", headers)
+
   if (!headers.Authorization) {
     return NextResponse.json({ user: null }, { status: 401 })
   }

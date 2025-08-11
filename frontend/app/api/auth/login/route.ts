@@ -26,9 +26,10 @@ export async function POST(req: Request) {
         { status: 500 }
       )
     }
+    console.log(data)
 
     setAuthCookie(data.token)
-    return NextResponse.json({ user: data.user ?? null })
+    return NextResponse.json({ token: data.token ?? null })
   } catch (e: any) {
     return NextResponse.json(
       { message: e.message || "Login failed" },

@@ -1,0 +1,25 @@
+@JWT_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4OTUwZDU1OTAyY2MzZTdlYWJhNzQ5NyIsImVtYWlsIjoicmlzaGhpQGV4YW1wbGUxLmNvbSIsImlhdCI6MTc1NDg5NTExNn0.adc_LkY2s2Wb1u9HKvxJOvjkPN3lp25BjOzCxXhjGKM
+### Summary Cards
+GET http://localhost:3010/api/insights/summary
+Authorization: Bearer {{JWT_TOKEN}}
+Content-Type: application/json
+
+### Revenue Trends (last 6 months default)
+GET http://localhost:3010/api/insights/revenue-trends
+Authorization: Bearer {{JWT_TOKEN}}
+Content-Type: application/json
+
+### Revenue Trends (custom months)
+GET http://localhost:3010/api/insights/revenue-trends?months=3
+Authorization: Bearer {{JWT_TOKEN}}
+Content-Type: application/json
+
+### Recent Activity (default limit 10)
+GET http://localhost:3010/api/insights/recent-activity
+Authorization: Bearer {{JWT_TOKEN}}
+Content-Type: application/json
+
+### Recent Activity (limit 5)
+GET http://localhost:3010/api/insights/recent-activity?limit=5
+Authorization: Bearer {{JWT_TOKEN}}
+Content-Type: application/json

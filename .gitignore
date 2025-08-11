@@ -58,3 +58,11 @@ override.tf.json
 *_override.tf.json
 .terraform.lock.hcl
 terraform.tfvars.json
+
+
+# Python virtual environments
+venv/
+.env/
+.venv/
+env/
+ENV/

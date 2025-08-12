@@ -64,14 +64,8 @@ interface Invoice {
   status: string
   issuedAt: string | Date
   updatedAt: string | Date
+  number?: string
 }
-
-const CLIENTS = [
-  { id: "john", name: "John Doe", company: "Acme Corp" },
-  { id: "sarah", name: "Sarah Wilson", company: "TechStart Inc" },
-  { id: "mike", name: "Mike Johnson", company: "Design Co" },
-  { id: "emily", name: "Emily Chen", company: "Startup.io" },
-]
 
 export function InvoicesPage() {
   const [statusFilter, setStatusFilter] = useState("all")
@@ -103,16 +97,23 @@ export function InvoicesPage() {
       statusFilter === "all" || invoice.status.toLowerCase() === statusFilter
   )
 
+  const INVOICE_STATUSES = [
+    { value: "DRAFT", label: "Draft" },
+    { value: "SENT", label: "Sent" },
+    { value: "PAID", label: "Paid" },
+    { value: "VOID", label: "Void" },
+  ]
+
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "paid":
+    switch (status.toUpperCase()) {
+      case "PAID":
         return "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
-      case "pending":
-        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400"
-      case "overdue":
-        return "bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400"
-      case "draft":
+      case "SENT":
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400"
+      case "VOID":
         return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400"
+      case "DRAFT":
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400"
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400"
     }
@@ -131,11 +132,9 @@ export function InvoicesPage() {
       )
     if (!client) return
     await createInvoice.mutateAsync({
-      clientSnapshot: client,
+      clientId: client._id,
       total: Number(form.amount),
       status: form.status,
-      issuedAt: new Date(),
-      updatedAt: form.dueDate ? new Date(form.dueDate) : new Date(),
       description: form.description,
     })
     setIsCreateModalOpen(false)
@@ -144,7 +143,7 @@ export function InvoicesPage() {
       amount: "",
       dueDate: "",
       description: "",
-      status: "pending",
+      status: "PENDING",
     })
     refetch()
   }
@@ -240,11 +239,13 @@ export function InvoicesPage() {
                     <SelectValue placeholder="Select a client" />
                   </SelectTrigger>
                   <SelectContent>
-                    {CLIENTS.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name} - {c.company}
-                      </SelectItem>
-                    ))}
+                    {clients.map(
+                      (c: { _id: string; name: string; company: string }) => (
+                        <SelectItem key={c._id} value={c._id}>
+                          {c.name} - {c.company}
+                        </SelectItem>
+                      )
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -295,10 +296,11 @@ export function InvoicesPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="paid">Paid</SelectItem>
-                    <SelectItem value="overdue">Overdue</SelectItem>
-                    <SelectItem value="draft">Draft</SelectItem>
+                    {INVOICE_STATUSES.map((status) => (
+                      <SelectItem key={status.value} value={status.value}>
+                        {status.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -392,10 +394,11 @@ export function InvoicesPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="paid">Paid</SelectItem>
-                    <SelectItem value="overdue">Overdue</SelectItem>
-                    <SelectItem value="draft">Draft</SelectItem>
+                    {INVOICE_STATUSES.map((status) => (
+                      <SelectItem key={status.value} value={status.value}>
+                        {status.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -432,10 +435,11 @@ export function InvoicesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="paid">Paid</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="overdue">Overdue</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
+                  {INVOICE_STATUSES.map((status) => (
+                    <SelectItem key={status.value} value={status.value}>
+                      {status.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -461,7 +465,7 @@ export function InvoicesPage() {
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <FileText className="w-4 h-4 text-gray-400" />
-                        {invoice._id}
+                        {invoice.number || invoice._id}
                       </div>
                     </TableCell>
                     <TableCell>

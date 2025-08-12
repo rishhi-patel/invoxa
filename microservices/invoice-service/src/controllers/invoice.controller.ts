@@ -13,12 +13,29 @@ function getUserId(req: AuthedReq, res: Response): string | undefined {
   return req.user.id
 }
 
+async function generateUniqueInvoiceNumber(): Promise<string> {
+  const year = new Date().getFullYear()
+  let counter = 1
+  let invoiceNumber: string
+  let exists = true
+
+  while (exists) {
+    invoiceNumber = `INV-${year}-${counter.toString().padStart(4, "0")}`
+    // Check if invoice number already exists
+    // @ts-ignore
+    exists = await InvoiceModel.exists({ number: invoiceNumber })
+    if (exists) counter++
+  }
+  return invoiceNumber!
+}
+
 export const createInvoice = async (req: AuthedReq, res: Response) => {
   try {
     const userId = getUserId(req, res)
     if (!userId) return
 
     const client = await fetchClientLite(req.body.clientId)
+    req.body.number = await generateUniqueInvoiceNumber()
     const inv = new InvoiceModel({
       ...req.body,
       createdBy: userId,

@@ -1,10 +1,23 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
@@ -68,14 +81,16 @@ export function ClientsPage() {
     (client) =>
       client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      client.company.toLowerCase().includes(searchTerm.toLowerCase()),
+      client.company.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Clients</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Clients
+          </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
             Manage your client relationships and contact information.
           </p>
@@ -91,7 +106,9 @@ export function ClientsPage() {
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Add New Client</DialogTitle>
-              <DialogDescription>Enter the client's information to add them to your database.</DialogDescription>
+              <DialogDescription>
+                Enter the client's information to add them to your database.
+              </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
@@ -100,7 +117,11 @@ export function ClientsPage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="client-email">Email</Label>
-                <Input id="client-email" type="email" placeholder="john@example.com" />
+                <Input
+                  id="client-email"
+                  type="email"
+                  placeholder="john@example.com"
+                />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="client-company">Company</Label>
@@ -112,10 +133,15 @@ export function ClientsPage() {
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsAddModalOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setIsAddModalOpen(false)}
+              >
                 Cancel
               </Button>
-              <Button onClick={() => setIsAddModalOpen(false)}>Add Client</Button>
+              <Button onClick={() => setIsAddModalOpen(false)}>
+                Add Client
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -126,7 +152,9 @@ export function ClientsPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <CardTitle>Client Directory</CardTitle>
-              <CardDescription>A list of all your clients and their information.</CardDescription>
+              <CardDescription>
+                A list of all your clients and their information.
+              </CardDescription>
             </div>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -175,9 +203,17 @@ export function ClientsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={client.status === "Active" ? "default" : "secondary"}>{client.status}</Badge>
+                      <Badge
+                        variant={
+                          client.status === "Active" ? "default" : "secondary"
+                        }
+                      >
+                        {client.status}
+                      </Badge>
                     </TableCell>
-                    <TableCell className="text-right font-medium">${client.totalRevenue.toLocaleString()}</TableCell>
+                    <TableCell className="text-right font-medium">
+                      ${client.totalRevenue.toLocaleString()}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

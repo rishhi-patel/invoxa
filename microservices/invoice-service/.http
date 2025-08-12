@@ -1,5 +1,5 @@
-@TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4OTUwZDU1OTAyY2MzZTdlYWJhNzQ5NyIsImVtYWlsIjoicmlzaGhpQGV4YW1wbGUxLmNvbSIsImlhdCI6MTc1NDcxNjQ4NH0.kM62vCZDFkDYvvOoTMaUJ0mmRJSH95hQB4RC6a9zF78
-@CLIENT_ID=689576e4c8be9a3481fd7934
+@TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4OTUwZDU1OTAyY2MzZTdlYWJhNzQ5NyIsImVtYWlsIjoicmlzaGhpQGV4YW1wbGUxLmNvbSIsImlhdCI6MTc1NDk2MTI4M30.nhV9rvQDcjuIgPlba_j4S1nx6DVE_ahYcLUszkbePmE
+@CLIENT_ID=689a910a4ee433c931e5bca1
 @INVOICE_ID=6896eec0c13d68fa4acd3ee8
 ### Create (createdBy comes from JWT)
 POST http://localhost:3003/api/invoices
@@ -8,7 +8,7 @@ Content-Type: application/json
 
 {
   "clientId": "{{CLIENT_ID}}",
-  "number": "INV-2025-0002",
+  "number": "INV-2025-0003",
   "items": [
     { "name": "API Dev", "quantity": 8, "unitPrice": 80 }
   ],

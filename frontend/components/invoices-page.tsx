@@ -1,10 +1,23 @@
 "use client"
 
 import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import {
   Dialog,
@@ -15,55 +28,79 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Plus, Filter, FileText, Calendar, DollarSign } from "lucide-react"
+import {
+  Plus,
+  Filter,
+  FileText,
+  Calendar,
+  DollarSign,
+  Pencil,
+  Trash2,
+} from "lucide-react"
+import {
+  useInvoices,
+  useCreateInvoice,
+  useUpdateInvoice,
+  useDeleteInvoice,
+} from "@/hooks/useInvoices"
+import { useClients } from "@/hooks/useClients"
 
-const invoices = [
-  {
-    id: "INV-001",
-    client: "John Doe",
-    company: "Acme Corp",
-    amount: 2500,
-    status: "Paid",
-    dueDate: "2024-01-15",
-    issueDate: "2024-01-01",
-  },
-  {
-    id: "INV-002",
-    client: "Sarah Wilson",
-    company: "TechStart Inc",
-    amount: 1800,
-    status: "Pending",
-    dueDate: "2024-01-20",
-    issueDate: "2024-01-05",
-  },
-  {
-    id: "INV-003",
-    client: "Mike Johnson",
-    company: "Design Co",
-    amount: 950,
-    status: "Overdue",
-    dueDate: "2024-01-10",
-    issueDate: "2023-12-25",
-  },
-  {
-    id: "INV-004",
-    client: "Emily Chen",
-    company: "Startup.io",
-    amount: 3200,
-    status: "Draft",
-    dueDate: "2024-02-01",
-    issueDate: "2024-01-15",
-  },
+interface Invoice {
+  _id: string
+  clientSnapshot: {
+    id: string
+    name: string
+    company: string
+  }
+  total: number
+  status: string
+  issuedAt: string | Date
+  updatedAt: string | Date
+}
+
+const CLIENTS = [
+  { id: "john", name: "John Doe", company: "Acme Corp" },
+  { id: "sarah", name: "Sarah Wilson", company: "TechStart Inc" },
+  { id: "mike", name: "Mike Johnson", company: "Design Co" },
+  { id: "emily", name: "Emily Chen", company: "Startup.io" },
 ]
 
 export function InvoicesPage() {
   const [statusFilter, setStatusFilter] = useState("all")
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [editInvoice, setEditInvoice] = useState<Invoice | null>(null)
+  const [form, setForm] = useState({
+    clientId: "",
+    amount: "",
+    dueDate: "",
+    description: "",
+    status: "pending",
+  })
+
+  const {
+    data: clients = [],
+    isPending: isPendingClient,
+    refetch: refetchClient,
+  } = useClients()
+  const { data: invoices = [], isPending, refetch } = useInvoices()
+  const createInvoice = useCreateInvoice()
+  const [updateInvoiceId, setUpdateInvoiceId] = useState<string | null>(null)
+  const updateInvoice = useUpdateInvoice(updateInvoiceId ?? "")
+  const [deleteInvoiceId, setDeleteInvoiceId] = useState<string | null>(null)
+  const deleteInvoice = useDeleteInvoice(deleteInvoiceId ?? "")
 
   const filteredInvoices = invoices.filter(
-    (invoice) => statusFilter === "all" || invoice.status.toLowerCase() === statusFilter,
+    (invoice: Invoice) =>
+      statusFilter === "all" || invoice.status.toLowerCase() === statusFilter
   )
 
   const getStatusColor = (status: string) => {
@@ -81,14 +118,103 @@ export function InvoicesPage() {
     }
   }
 
+  // Handlers for create
+  const handleCreateChange = (field: string, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleCreate = async () => {
+    const client: { _id: string; name: string; company: string } | undefined =
+      clients.find(
+        (c: { _id: string; name: string; company: string }) =>
+          c._id === form.clientId
+      )
+    if (!client) return
+    await createInvoice.mutateAsync({
+      clientSnapshot: client,
+      total: Number(form.amount),
+      status: form.status,
+      issuedAt: new Date(),
+      updatedAt: form.dueDate ? new Date(form.dueDate) : new Date(),
+      description: form.description,
+    })
+    setIsCreateModalOpen(false)
+    setForm({
+      clientId: "",
+      amount: "",
+      dueDate: "",
+      description: "",
+      status: "pending",
+    })
+    refetch()
+  }
+
+  const openEditModal = (invoice: Invoice) => {
+    setEditInvoice(invoice)
+    setUpdateInvoiceId(invoice._id)
+    setForm({
+      clientId: invoice.clientSnapshot.id,
+      amount: invoice.total.toString(),
+      dueDate:
+        typeof invoice.updatedAt === "string"
+          ? invoice.updatedAt.slice(0, 10)
+          : "",
+      description: (invoice as any).description || "",
+      status: invoice.status,
+    })
+    setIsEditModalOpen(true)
+  }
+  const handleEdit = async () => {
+    if (!editInvoice) return
+    const client: { _id: string; name: string; company: string } | undefined =
+      clients.find(
+        (c: { _id: string; name: string; company: string }) =>
+          c._id === form.clientId
+      )
+    if (!client) return
+    await updateInvoice.mutateAsync({
+      _id: editInvoice._id,
+      clientSnapshot: client,
+      total: Number(form.amount),
+      status: form.status,
+      issuedAt: editInvoice.issuedAt,
+      updatedAt: form.dueDate ? new Date(form.dueDate) : new Date(),
+      description: form.description,
+    })
+    setIsEditModalOpen(false)
+    setEditInvoice(null)
+    setUpdateInvoiceId(null)
+    setForm({
+      clientId: "",
+      amount: "",
+      dueDate: "",
+      description: "",
+      status: "pending",
+    })
+    refetch()
+  }
+
+  // Handler for delete
+  const handleDelete = async (id: string) => {
+    setDeleteInvoiceId(id)
+    await deleteInvoice.mutateAsync()
+    setDeleteInvoiceId(null)
+    refetch()
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Invoices</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">Create, manage, and track your invoices and payments.</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Invoices
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">
+            Create, manage, and track your invoices and payments.
+          </p>
         </div>
 
+        {/* Create Invoice Dialog */}
         <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
           <DialogTrigger asChild>
             <Button className="flex items-center gap-2">
@@ -99,43 +225,191 @@ export function InvoicesPage() {
           <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
               <DialogTitle>Create New Invoice</DialogTitle>
-              <DialogDescription>Fill in the details to create a new invoice for your client.</DialogDescription>
+              <DialogDescription>
+                Fill in the details to create a new invoice for your client.
+              </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
                 <Label htmlFor="invoice-client">Client</Label>
-                <Select>
+                <Select
+                  value={form.clientId}
+                  onValueChange={(v) => handleCreateChange("clientId", v)}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Select a client" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="john">John Doe - Acme Corp</SelectItem>
-                    <SelectItem value="sarah">Sarah Wilson - TechStart Inc</SelectItem>
-                    <SelectItem value="mike">Mike Johnson - Design Co</SelectItem>
-                    <SelectItem value="emily">Emily Chen - Startup.io</SelectItem>
+                    {CLIENTS.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name} - {c.company}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="invoice-amount">Amount</Label>
-                  <Input id="invoice-amount" type="number" placeholder="0.00" />
+                  <Input
+                    id="invoice-amount"
+                    type="number"
+                    placeholder="0.00"
+                    value={form.amount}
+                    onChange={(e) =>
+                      handleCreateChange("amount", e.target.value)
+                    }
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="invoice-due">Due Date</Label>
-                  <Input id="invoice-due" type="date" />
+                  <Input
+                    id="invoice-due"
+                    type="date"
+                    value={form.dueDate}
+                    onChange={(e) =>
+                      handleCreateChange("dueDate", e.target.value)
+                    }
+                  />
                 </div>
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="invoice-description">Description</Label>
-                <Textarea id="invoice-description" placeholder="Describe the services or products..." rows={3} />
+                <Textarea
+                  id="invoice-description"
+                  placeholder="Describe the services or products..."
+                  rows={3}
+                  value={form.description}
+                  onChange={(e) =>
+                    handleCreateChange("description", e.target.value)
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="invoice-status">Status</Label>
+                <Select
+                  value={form.status}
+                  onValueChange={(v) => handleCreateChange("status", v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="overdue">Overdue</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setIsCreateModalOpen(false)}
+              >
                 Cancel
               </Button>
-              <Button onClick={() => setIsCreateModalOpen(false)}>Create Invoice</Button>
+              <Button onClick={handleCreate} disabled={createInvoice.isPending}>
+                Create Invoice
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Edit Invoice Dialog */}
+        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Edit Invoice</DialogTitle>
+              <DialogDescription>Update the invoice details.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-invoice-client">Client</Label>
+                <Select
+                  value={form.clientId}
+                  onValueChange={(v) => handleCreateChange("clientId", v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a client" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clients.map(
+                      (c: { _id: string; name: string; company: string }) => (
+                        <SelectItem key={c._id} value={c._id}>
+                          {c.name} - {c.company}
+                        </SelectItem>
+                      )
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-invoice-amount">Amount</Label>
+                  <Input
+                    id="edit-invoice-amount"
+                    type="number"
+                    placeholder="0.00"
+                    value={form.amount}
+                    onChange={(e) =>
+                      handleCreateChange("amount", e.target.value)
+                    }
+                  />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="edit-invoice-due">Due Date</Label>
+                  <Input
+                    id="edit-invoice-due"
+                    type="date"
+                    value={form.dueDate}
+                    onChange={(e) =>
+                      handleCreateChange("dueDate", e.target.value)
+                    }
+                  />
+                </div>
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-invoice-description">Description</Label>
+                <Textarea
+                  id="edit-invoice-description"
+                  placeholder="Describe the services or products..."
+                  rows={3}
+                  value={form.description}
+                  onChange={(e) =>
+                    handleCreateChange("description", e.target.value)
+                  }
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-invoice-status">Status</Label>
+                <Select
+                  value={form.status}
+                  onValueChange={(v) => handleCreateChange("status", v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="overdue">Overdue</SelectItem>
+                    <SelectItem value="draft">Draft</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsEditModalOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleEdit} disabled={updateInvoice.isPending}>
+                Save Changes
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
@@ -146,7 +420,9 @@ export function InvoicesPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <CardTitle>Invoice Management</CardTitle>
-              <CardDescription>Track and manage all your invoices in one place.</CardDescription>
+              <CardDescription>
+                Track and manage all your invoices in one place.
+              </CardDescription>
             </div>
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-gray-400" />
@@ -180,43 +456,62 @@ export function InvoicesPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredInvoices.map((invoice) => (
-                  <TableRow key={invoice.id}>
+                {filteredInvoices.map((invoice: Invoice) => (
+                  <TableRow key={invoice._id}>
                     <TableCell className="font-medium">
                       <div className="flex items-center gap-2">
                         <FileText className="w-4 h-4 text-gray-400" />
-                        {invoice.id}
+                        {invoice._id}
                       </div>
                     </TableCell>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{invoice.client}</div>
-                        <div className="text-sm text-gray-500">{invoice.company}</div>
+                        <div className="font-medium">
+                          {invoice.clientSnapshot.name}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {invoice.clientSnapshot.company}
+                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <DollarSign className="w-4 h-4 text-gray-400" />${invoice.amount.toLocaleString()}
+                        <DollarSign className="w-4 h-4 text-gray-400" />$
+                        {invoice.total.toLocaleString()}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge className={getStatusColor(invoice.status)}>{invoice.status}</Badge>
+                      <Badge className={getStatusColor(invoice.status)}>
+                        {invoice.status}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-gray-400" />
-                        {new Date(invoice.issueDate).toLocaleDateString()}
+                        {new Date(invoice.issuedAt).toLocaleDateString()}
                       </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4 text-gray-400" />
-                        {new Date(invoice.dueDate).toLocaleDateString()}
+                        {new Date(invoice.updatedAt).toLocaleDateString()}
                       </div>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="outline" size="sm">
-                        View
+                    <TableCell className="text-right flex gap-2 justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openEditModal(invoice)}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDelete(invoice._id)}
+                        disabled={deleteInvoice.isPending}
+                      >
+                        <Trash2 className="w-4 h-4" />
                       </Button>
                     </TableCell>
                   </TableRow>

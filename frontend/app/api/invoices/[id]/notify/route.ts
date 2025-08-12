@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server"
-import { authHeader, errorJson } from "../../../_utils/auth"
-import { api } from "@/lib/http"
+import { authFrom, errorJson } from "../../../_utils/auth"
+import { forward } from "@/lib/fetcher"
 
 const BASE = process.env.INVOICE_SERVICE_URL!
 
 export async function POST(_: Request, { params }: { params: { id: string } }) {
   try {
-    const data = await api(`${BASE}/api/invoices/${params.id}/notify`, {
+    const data = await forward(`${BASE}/api/invoices/${params.id}/notify`, {
       method: "POST",
-      headers: await authHeader(),
+      headers: authFrom(_),
     })
     return NextResponse.json(data)
   } catch (e: any) {

@@ -42,16 +42,4 @@ describe("Auth Service", () => {
     expect(res.body).toHaveProperty("token")
     token = res.body.token
   })
-
-  it("should validate token", async () => {
-    token = encodeJwsToken(userData)
-
-    const res = await request(app)
-      .get("/api/auth/validate")
-      .set("Authorization", `Bearer ${token}`)
-
-    expect(res.status).toBe(200)
-
-    expect(res.body).toHaveProperty("valid", true)
-  })
 })

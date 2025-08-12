@@ -59,7 +59,7 @@ export const validate = async (req: Request, res: Response) => {
 
   try {
     const decoded = decodeJwsToken(token)
-    res.json({ valid: true, decoded })
+    res.json({ valid: Boolean(decoded?.id), decoded })
   } catch (err) {
     handleError(res, err, "Token validation failed", 401)
   }

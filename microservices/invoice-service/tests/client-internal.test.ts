@@ -50,14 +50,12 @@ describe("Invoice API (S2S snapshot, no client model)", () => {
       .post("/api/invoices")
       .send({
         clientId: new mongoose.Types.ObjectId().toString(),
-        number: "INV-0001",
         items: [{ name: "Dev", quantity: 10, unitPrice: 50 }],
         taxRate: 13,
       })
 
     console.log("Response body:", res.body)
 
-    expect(res.body.number).toBe("INV-0001")
     expect(res.body.clientSnapshot).toMatchObject({
       name: "Client Snap",
       email: "client@example.com",

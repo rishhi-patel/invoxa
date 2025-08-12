@@ -65,6 +65,7 @@ interface Invoice {
   issuedAt: string | Date
   updatedAt: string | Date
   number?: string
+  currency?: string
 }
 
 export function InvoicesPage() {
@@ -480,8 +481,9 @@ export function InvoicesPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <DollarSign className="w-4 h-4 text-gray-400" />$
-                        {invoice.total.toLocaleString()}
+                        <DollarSign className="w-4 h-4 text-gray-400" />
+                        {invoice.total.toLocaleString()}{" "}
+                        {invoice.currency || "USD"}
                       </div>
                     </TableCell>
                     <TableCell>

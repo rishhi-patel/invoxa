@@ -9,12 +9,12 @@ export function useClients() {
     queryFn: () => api("/api/clients"),
   })
   useOnError(q.error)
-  return q
+  return { ...q, isLoadsing: q.isLoading }
 }
 
 export function useCreateClient() {
   const qc = useQueryClient()
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: (body: any) =>
       api("/api/clients", { method: "POST", ...json(body) }),
     onSuccess: () => {
@@ -25,11 +25,12 @@ export function useCreateClient() {
       toast.error(e?.message ?? "Failed to create client")
     },
   })
+  return { ...mutation, isLoadsing: mutation.isPending }
 }
 
 export function useUpdateClient(id: string) {
   const qc = useQueryClient()
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: (body: any) =>
       api(`/api/clients/${id}`, { method: "PUT", ...json(body) }),
     onSuccess: () => {
@@ -40,11 +41,12 @@ export function useUpdateClient(id: string) {
       toast.error(e?.message ?? "Failed to update client")
     },
   })
+  return { ...mutation, isLoadsing: mutation.isPending }
 }
 
 export function useDeleteClient(id: string) {
   const qc = useQueryClient()
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: () => api(`/api/clients/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       toast.success("Client deleted")
@@ -54,4 +56,5 @@ export function useDeleteClient(id: string) {
       toast.error(e?.message ?? "Failed to delete client")
     },
   })
+  return { ...mutation, isLoadsing: mutation.isPending }
 }

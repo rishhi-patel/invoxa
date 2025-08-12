@@ -28,3 +28,7 @@ export async function api<T = any>(
 
   return data as T
 }
+
+export function json(body: unknown) {
+  return { body: JSON.stringify(body) }
+}

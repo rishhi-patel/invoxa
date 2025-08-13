@@ -1,13 +1,18 @@
-FROM node:18
-
+# Build stage
+FROM node:20-alpine AS build
 WORKDIR /app
-
 COPY package*.json ./
-RUN npm install
+RUN npm ci
+COPY tsconfig.json ./
+COPY src ./src
+RUN npm run build && npm prune --omit=dev
 
-COPY . .
+# Lambda runtime
+FROM public.ecr.aws/lambda/nodejs:20
+WORKDIR ${LAMBDA_TASK_ROOT}
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/package*.json ./
+COPY --from=build /app/node_modules ./node_modules
 
-RUN npm run build
-
-EXPOSE 3000
-CMD ["npm", "start"]
+# Lambda entry: exported "handler" function in dist/handler.js
+CMD [ "dist/handler.handler" ]

@@ -14,8 +14,40 @@ provider "aws" {
 
 locals {
   name_prefix = "${var.project}-${var.env}"
-  # Ensure services are lowered/normalized if needed
-  services = keys(var.image_uris)
+}
+
+# -------- Fetch service configs from SSM Parameter Store --------
+# Expect parameters under:
+#   /<env>/image_uris/<service> -> string image URI
+#   /<env>/lambda_envs/<service> -> JSON object of env vars
+data "aws_ssm_parameters_by_path" "image_uris" {
+  path            = "/${var.env}/image_uris/"
+  recursive       = false
+  with_decryption = false
+}
+
+data "aws_ssm_parameters_by_path" "lambda_envs" {
+  path            = "/${var.env}/lambda_envs/"
+  recursive       = false
+  with_decryption = true
+}
+
+locals {
+  # Map<service, image_uri>
+  image_uris = {
+    for full_name, value in zipmap(data.aws_ssm_parameters_by_path.image_uris.names, data.aws_ssm_parameters_by_path.image_uris.values) :
+    replace(full_name, "/${var.env}/image_uris/", "") => value
+  }
+
+  # Map<service, map<string,string>>
+  lambda_envs_raw = {
+    for full_name, value in zipmap(data.aws_ssm_parameters_by_path.lambda_envs.names, data.aws_ssm_parameters_by_path.lambda_envs.values) :
+    replace(full_name, "/${var.env}/lambda_envs/", "") => value
+  }
+  lambda_envs = { for k, v in local.lambda_envs_raw : k => try(jsondecode(v), {}) }
+
+  # Services derive from available image_uris
+  services = keys(local.image_uris)
 }
 
 # -------- Shared HTTP API (one for all services) --------
@@ -86,7 +118,7 @@ resource "aws_iam_role_policy_attachment" "cwlogs_attach" {
 
 # Lambda (container) per service
 resource "aws_lambda_function" "svc" {
-  for_each = var.image_uris
+  for_each = var.create_lambdas ? local.image_uris : {}
 
   function_name = "${local.name_prefix}-${each.key}"
   role          = aws_iam_role.lambda[each.key].arn
@@ -99,7 +131,7 @@ resource "aws_lambda_function" "svc" {
 
 
   environment {
-    variables = lookup(var.lambda_envs, each.key, {})
+  variables = lookup(local.lambda_envs, each.key, {})
   }
 }
 

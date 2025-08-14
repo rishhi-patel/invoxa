@@ -32,29 +32,14 @@ variable "lambda_timeout_seconds" {
   default     = 15
 }
 
-variable "image_uris" {
-  description = <<EOF
-Map of service => image URI (ECR), one per microservice.
-Keys should match path base under /api/<service>
-e.g. {
-  auth     = "8577....amazonaws.com/invoxa-dev-auth@sha256:..."
-  client   = "8577....amazonaws.com/invoxa-dev-client@sha256:..."
-  invoice  = "..."
-  payment  = "..."
-  insights = "..."
-}
-EOF
-  type        = map(string)
-}
-
-variable "lambda_envs" {
-  description = "Per-service environment variables. Map<service, map<string,string>>"
-  type        = map(map(string))
-  default     = {}
-}
-
 variable "log_retention_days" {
   description = "Retention for Lambda CloudWatch Logs groups"
   type        = number
   default     = 14
+}
+
+variable "create_lambdas" {
+  description = "Whether to create/update Lambda functions and API integrations in this apply"
+  type        = bool
+  default     = false
 }

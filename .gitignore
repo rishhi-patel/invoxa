@@ -52,8 +52,7 @@ coverage.xml
 *.tfstate.*
 crash.log
 terraform.tfvars
-# Allow dev.tfvars to be tracked for CI/CD
-# *.tfvars (commented out to allow dev.tfvars)
+*.tfvars
 override.tf
 override.tf.json
 *_override.tf

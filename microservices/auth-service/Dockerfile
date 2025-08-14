@@ -3,7 +3,7 @@ FROM public.ecr.aws/lambda/nodejs:20 AS build
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --ignore-scripts
+RUN npm install --ignore-scripts
 COPY tsconfig.json ./
 COPY src ./src
 

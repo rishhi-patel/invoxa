@@ -54,7 +54,7 @@ pipeline {
 						withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
 							withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}"]) {
 								sh label: 'Terraform init', script: '''
-									set -euxo pipefail
+									set -eu
 									terraform --version
 									terraform init -input=false
 									terraform workspace select dev || terraform workspace new dev

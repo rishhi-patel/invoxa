@@ -20,20 +20,74 @@ import { useAuth } from "@/hooks/useAuth"
 
 export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
-  const { login, loading } = useAuth({ autoHydrate: false })
+  const { login, loading, register } = useAuth({ autoHydrate: false })
   const router = useRouter()
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    if (await login("rishhi@example1.com", "supersecret")) {
-      router.push("/")
-    }
-  }
+  // Form states
+  const [tab, setTab] = useState<"login" | "signup">("login")
+  const [loginEmail, setLoginEmail] = useState("demo@invoxa.com")
+  const [loginPassword, setLoginPassword] = useState("demo123")
+  const [signupName, setSignupName] = useState("")
+  const [signupEmail, setSignupEmail] = useState("")
+  const [signupPassword, setSignupPassword] = useState("")
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     setIsLoading(loading)
   }, [loading])
+
+  // Basic email validation
+  const validateEmail = (email: string) =>
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+
+  // Basic password validation (min 6 chars)
+  const validatePassword = (password: string) => password.length >= 6
+
+  const handleLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    if (!validateEmail(loginEmail)) {
+      setError("Please enter a valid email address.")
+      return
+    }
+    if (!validatePassword(loginPassword)) {
+      setError("Password must be at least 6 characters.")
+      return
+    }
+    setIsLoading(true)
+    const success = await login(loginEmail, loginPassword)
+    setIsLoading(false)
+    if (success) {
+      router.push("/")
+    } else {
+      setError("Invalid login credentials.")
+    }
+  }
+
+  const handleSignupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    if (!signupName.trim()) {
+      setError("Full name is required.")
+      return
+    }
+    if (!validateEmail(signupEmail)) {
+      setError("Please enter a valid email address.")
+      return
+    }
+    if (!validatePassword(signupPassword)) {
+      setError("Password must be at least 6 characters.")
+      return
+    }
+    setIsLoading(true)
+    const success = await register(signupEmail, signupPassword)
+    setIsLoading(false)
+    if (success) {
+      router.push("/")
+    } else {
+      setError("Registration failed. Try a different email.")
+    }
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 p-4">
@@ -60,14 +114,19 @@ export function LoginPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="login" className="w-full">
+            <Tabs
+              defaultValue="login"
+              value={tab}
+              onValueChange={(v) => setTab(v as "login" | "signup")}
+              className="w-full"
+            >
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="login">Login</TabsTrigger>
                 <TabsTrigger value="signup">Sign Up</TabsTrigger>
               </TabsList>
 
               <TabsContent value="login">
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleLoginSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
                     <div className="relative">
@@ -77,7 +136,8 @@ export function LoginPage() {
                         type="email"
                         placeholder="demo@invoxa.com"
                         className="pl-10"
-                        defaultValue="demo@invoxa.com"
+                        value={loginEmail}
+                        onChange={(e) => setLoginEmail(e.target.value)}
                         required
                       />
                     </div>
@@ -91,11 +151,15 @@ export function LoginPage() {
                         type="password"
                         placeholder="••••••••"
                         className="pl-10"
-                        defaultValue="demo123"
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
                         required
                       />
                     </div>
                   </div>
+                  {error && tab === "login" && (
+                    <div className="text-red-500 text-sm">{error}</div>
+                  )}
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? "Signing in..." : "Sign In"}
                   </Button>
@@ -103,7 +167,7 @@ export function LoginPage() {
               </TabsContent>
 
               <TabsContent value="signup">
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSignupSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Full Name</Label>
                     <div className="relative">
@@ -113,6 +177,8 @@ export function LoginPage() {
                         type="text"
                         placeholder="John Doe"
                         className="pl-10"
+                        value={signupName}
+                        onChange={(e) => setSignupName(e.target.value)}
                         required
                       />
                     </div>
@@ -126,6 +192,8 @@ export function LoginPage() {
                         type="email"
                         placeholder="john@example.com"
                         className="pl-10"
+                        value={signupEmail}
+                        onChange={(e) => setSignupEmail(e.target.value)}
                         required
                       />
                     </div>
@@ -139,10 +207,15 @@ export function LoginPage() {
                         type="password"
                         placeholder="••••••••"
                         className="pl-10"
+                        value={signupPassword}
+                        onChange={(e) => setSignupPassword(e.target.value)}
                         required
                       />
                     </div>
                   </div>
+                  {error && tab === "signup" && (
+                    <div className="text-red-500 text-sm">{error}</div>
+                  )}
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? "Creating account..." : "Create Account"}
                   </Button>

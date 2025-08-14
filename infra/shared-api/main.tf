@@ -62,7 +62,7 @@ resource "aws_lambda_function" "svc" {
   function_name = "${local.name_prefix}-${each.key}"
   role          = aws_iam_role.lambda[each.key].arn
   package_type  = "Image"
-  image_uri     = each.value
+  image_uri     = coalesce(lookup(var.service_images, each.key, null), each.value)
 
   timeout       = var.lambda_timeout_seconds
   memory_size   = var.lambda_memory_mb

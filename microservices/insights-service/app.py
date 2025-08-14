@@ -7,9 +7,13 @@ def create_app():
     app = Flask(__name__)
     CORS(app)
 
-    @app.get("/health")
+    @app.get("/api/insights/health")
     def health():
-        return {"status": "ok"}, 200
+        return jsonify(ok=True, service="insights-service")
+
+    @app.get("/api/insights/ping")
+    def ping():
+        return jsonify(pong=True, q=request.args.get("q", ""))
 
     app.register_blueprint(metrics_bp, url_prefix="/api/insights")
     return app

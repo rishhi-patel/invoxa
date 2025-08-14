@@ -3,16 +3,16 @@
   "version": "1.0.0",
   "main": "dist/index.js",
   "scripts": {
-    "start": "tsc && node dist/index.js",
     "dev": "ts-node-dev --respawn src/index.ts",
     "build": "tsc",
-    "lambda": "node dist/handler.js",
+    "start": "tsc && node dist/index.js",
+    "lambda": "node dist/src/handler.js",
     "test": "jest --coverage"
   },
   "dependencies": {
     "@vendia/serverless-express": "^4.12.6",
     "bcryptjs": "^3.0.2",
-    "chalk": "^4.1.2",
+    "chalk": "4.1.2",
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",

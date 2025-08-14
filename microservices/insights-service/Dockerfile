@@ -1,20 +1,15 @@
-# Use official Python image
-FROM python:3.11-slim
+# ---- build/runtime: Lambda Python 3.11 ----
+FROM public.ecr.aws/lambda/python:3.11
+WORKDIR ${LAMBDA_TASK_ROOT}
 
-# Set working directory
-WORKDIR /app
-
-# Copy requirements file
+# Install deps
 COPY requirements.txt .
+RUN python -m pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy app
+COPY src ./
 
-# Copy application code
-COPY . .
-
-# Set environment variable for Flask
-ENV FLASK_APP=app.py
-
-# Run the Flask app
-CMD ["flask", "run", "--host=0.0.0.0"]
+# Handler module/function:
+# Matches Terraform handler_commands["insights"] = "handler.handler"
+CMD [ "handler.handler" ]

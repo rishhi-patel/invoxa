@@ -30,3 +30,20 @@ if (process.env.NODE_ENV !== "test") {
 }
 
 export default app
+
+// Local dev only: run the HTTP server
+if (!process.env.LAMBDA_TASK_ROOT) {
+  const start = async () => {
+    try {
+      await connectToDB()
+      const PORT = process.env.PORT || 3002
+      app.listen(PORT, () => {
+        console.log(`🚀 auth-service running on http://localhost:${PORT}`)
+      })
+    } catch (err) {
+      console.error("DB connect failed:", err)
+      process.exit(1)
+    }
+  }
+  start()
+}

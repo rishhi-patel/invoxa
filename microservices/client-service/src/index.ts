@@ -13,7 +13,7 @@ app.use(express.json())
 app.use(requestLogger)
 
 app.get("/", (_req, res) => res.send("Client Service is running 🚀"))
-app.use("/api/clients", clientRoutes)
+app.use("/api/client", clientRoutes)
 app.get("/logger-test", (req, res) => {
   res.status(200).send("OK")
 })

@@ -1,9 +1,21 @@
 from flask import Flask
-app = Flask(__name__)
+from flask_cors import CORS
 
-@app.route('/')
-def hello():
-    return 'Hello from payment-service!'
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+def create_app():
+    app = Flask(__name__)
+    CORS(app)
+
+    @app.get("/api/insights/health")
+    def health():
+        return jsonify(ok=True, service="payment-service")
+
+    @app.get("/api/insights/ping")
+    def ping():
+        return jsonify(pong=True, q=request.args.get("q", ""))
+    return app
+
+
+if __name__ == "__main__":
+    app = create_app()
+    app.run(host="0.0.0.0", port=3010, debug=True)

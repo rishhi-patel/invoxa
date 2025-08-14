@@ -16,7 +16,7 @@ pipeline {
 
         stage('Terraform Init & Plan') {
             steps {
-                withCredentials([usernamePassword(credentialsId: 'aws-jenkins-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-credentials']]) {
                     sh """
                     cd infra
                     terraform init \
@@ -46,7 +46,7 @@ pipeline {
                 expression { env.INFRA_CHANGED == "true" }
             }
             steps {
-                withCredentials([usernamePassword(credentialsId: 'aws-jenkins-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-credentials']]) {
                     sh """
                     cd infra
                     terraform apply -auto-approve tfplan
@@ -60,7 +60,7 @@ pipeline {
                 expression { env.INFRA_CHANGED == "false" }
             }
             steps {
-                withCredentials([usernamePassword(credentialsId: 'aws-jenkins-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-credentials']]) {
                     script {
                         def services = ["auth-service", "client-service", "invoice-service", "payment-service", "insights-service"]
 
@@ -83,7 +83,7 @@ pipeline {
                 expression { env.INFRA_CHANGED == "false" }
             }
             steps {
-                withCredentials([usernamePassword(credentialsId: 'aws-jenkins-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-credentials']]) {
                     script {
                         def services = ["auth-service", "client-service", "invoice-service", "payment-service", "insights-service"]
 

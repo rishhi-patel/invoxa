@@ -7,30 +7,23 @@ pipeline {
 		disableConcurrentBuilds()
 	}
 
-	parameters {
-		string(name: 'RELEASE_VERSION', defaultValue: '', description: 'Override semver tag (e.g., v0.0.7). Leave blank to auto-bump patch from the latest git tag or start at v0.0.0')
-		booleanParam(name: 'FORCE_INFRA_APPLY', defaultValue: false, description: 'Run Terraform apply regardless of detected changes')
-		string(name: 'LAMBDA_SERVICES', defaultValue: '', description: 'Comma-separated service names to deploy to Lambda. Leave blank to deploy all Dockerized microservices')
-	}
-
 	environment {
 		ENVIRONMENT = 'dev'
 		AWS_REGION = 'us-east-1'
-		AWS_CREDENTIALS_ID = 'aws-dev'          // Jenkins Credentials (AWS access key + secret)
-		LAMBDA_PREFIX = 'invoxa'                // Prefix for Lambda function names: <prefix>-<service>-<env>
-		TF_DIR = 'terraform'                    // Terraform root directory
-		TF_VARS_FILE = 'terraform/dev.tfvars'   // TF vars file for dev
+		AWS_CREDENTIALS_ID = 'aws-jenkins-credentials' // Jenkins AWS creds ID
+		LAMBDA_PREFIX = 'invoxa'                // Fallback prefix if TF outputs are unavailable
+		TF_DIR = 'infra/shared-api'             // Terraform directory
 		DOCKER_BUILD_PLATFORM = 'linux/amd64'   // Ensure linux/amd64 images compatible with Lambda
+
+		// ECR repositories without tags (set these in Jenkins or edit here)
+		AUTH_REPO = '857736875915.dkr.ecr.us-east-1.amazonaws.com/invoxa-dev-auth'
+		CLIENT_REPO = '857736875915.dkr.ecr.us-east-1.amazonaws.com/invoxa-dev-client'
+		INVOICE_REPO = '857736875915.dkr.ecr.us-east-1.amazonaws.com/invoxa-dev-invoice'
+		PAYMENT_REPO = '857736875915.dkr.ecr.us-east-1.amazonaws.com/invoxa-dev-payment'
+		INSIGHTS_REPO = '857736875915.dkr.ecr.us-east-1.amazonaws.com/invoxa-dev-insights'
 	}
 
 	stages {
-		stage('Checkout') {
-			steps {
-				checkout scm
-				sh 'git --no-pager log -1 --oneline || true'
-			}
-		}
-
 		stage('Resolve AWS Account') {
 			steps {
 				withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
@@ -43,60 +36,85 @@ pipeline {
 			}
 		}
 
-		stage('Determine Release Version') {
+
+
+			stage('Determine Release Version') {
 			steps {
 				script {
-					def override = (params.RELEASE_VERSION ?: '').trim()
-					if (override) {
-						env.IMAGE_TAG = override
-					} else {
-						sh label: 'Compute next semver tag', script: '''
-							set -e
-							last=$(git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo "")
-							if [ -z "$last" ]; then
-								echo v0.0.0 > .version
-							else
-								ver=${last#v}
-								IFS='.' read -r MAJ MIN PAT <<EOF
-$ver
-EOF
-								PAT=$((PAT+1))
-								echo v${MAJ}.${MIN}.${PAT} > .version
-							fi
-						'''
-						env.IMAGE_TAG = sh(returnStdout: true, script: 'cat .version').trim()
-					}
+						// Simple, deterministic dev tag: v0.0.<BUILD_NUMBER>
+						env.IMAGE_TAG = "v0.0.${env.BUILD_NUMBER}"
 					currentBuild.displayName = "#${env.BUILD_NUMBER} ${env.ENVIRONMENT} ${env.IMAGE_TAG}"
 					echo "Release version: ${env.IMAGE_TAG}"
 				}
 			}
 		}
 
-		stage('Terraform Init/Plan/Apply (conditional)') {
-			when {
-				anyOf {
-					expression { return params.FORCE_INFRA_APPLY }
-			  changeset pattern: 'terraform/**', comparator: 'ANT'
-			  changeset pattern: 'infra/**', comparator: 'ANT'
-				}
-			}
-			steps {
-				dir(env.TF_DIR) {
-					withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
-						withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}"]) {
-							sh label: 'Terraform apply', script: '''
-								set -euxo pipefail
-								terraform --version
-								terraform init -input=false
-								terraform workspace select dev || terraform workspace new dev
-								terraform plan -input=false -var-file="${WORKSPACE}/${TF_VARS_FILE}" -out=tfplan
-								terraform apply -input=false -auto-approve tfplan
-							'''
+			stage('Terraform Init') {
+				steps {
+					dir(env.TF_DIR) {
+						withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+							withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}"]) {
+								sh label: 'Terraform init', script: '''
+									set -euxo pipefail
+									terraform --version
+									terraform init -input=false
+									terraform workspace select dev || terraform workspace new dev
+								'''
+							}
 						}
 					}
 				}
 			}
-		}
+
+			stage('Terraform Plan') {
+				steps {
+					dir(env.TF_DIR) {
+						withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+							withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}"]) {
+								sh label: 'Terraform plan', script: 'terraform plan -input=false -out=tfplan'
+							}
+						}
+					}
+				}
+			}
+
+			stage('Terraform Apply (manual)') {
+				steps {
+					dir(env.TF_DIR) {
+						input message: 'Approve Terraform apply to DEV?', ok: 'Apply'
+						withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+							withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}"]) {
+								sh label: 'Terraform apply', script: 'terraform apply -input=false -auto-approve tfplan'
+							}
+						}
+					}
+				}
+			}
+
+			stage('Terraform Destroy (manual)') {
+				steps {
+					dir(env.TF_DIR) {
+						script {
+							def proceed = false
+							try {
+								timeout(time: 30, unit: 'SECONDS') {
+									input message: 'Destroy DEV infra? This is destructive.', ok: 'Destroy'
+								}
+								proceed = true
+							} catch (err) {
+								echo 'Destroy skipped (no approval).'
+							}
+							if (proceed) {
+								withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+									withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}"]) {
+										sh label: 'Terraform destroy', script: 'terraform destroy -input=false -auto-approve'
+									}
+								}
+							}
+						}
+					}
+				}
+			}
 
 		stage('Login to ECR') {
 			steps {
@@ -111,23 +129,52 @@ EOF
 			}
 		}
 
-		stage('Build and Push Images') {
+			stage('Build Images') {
 			steps {
 				script {
-					def allServices = sh(returnStdout: true, script: 'ls -1 microservices | sed "/^\\./d"').trim().split(/\r?\n/)
-					allServices.each { svc ->
-						def dockerfilePath = "microservices/${svc}/Dockerfile"
-						if (!fileExists(dockerfilePath)) {
-							echo "Skipping ${svc}: no Dockerfile"
-							return
+						def imageRepos = [
+							auth: env.AUTH_REPO,
+							client: env.CLIENT_REPO,
+							invoice: env.INVOICE_REPO,
+							payment: env.PAYMENT_REPO,
+							insights: env.INSIGHTS_REPO
+						].findAll { it.value?.trim() }
+						if (!imageRepos) { error 'No ECR repos configured in environment variables.' }
+						imageRepos.each { svc, repo ->
+							def ctx1 = "microservices/${svc}-service/Dockerfile"
+							def ctx2 = "microservices/${svc}/Dockerfile"
+							def buildCtx = fileExists(ctx1) ? "microservices/${svc}-service" : (fileExists(ctx2) ? "microservices/${svc}" : null)
+							if (!buildCtx) {
+								echo "Skipping ${svc}: no Dockerfile context found"
+								return
+							}
+							echo "[BUILD] ${svc} from ${buildCtx} -> ${repo}:${env.IMAGE_TAG}"
+							sh label: "Build & push ${svc}", script: """
+								set -euxo pipefail
+								URI="${repo}"
+								docker build --platform ${DOCKER_BUILD_PLATFORM} -t "$URI:${IMAGE_TAG}" -t "$URI:latest" "$buildCtx"
+							"""
 						}
-						echo "Building ${svc} as ${env.IMAGE_TAG}"
-						sh label: "Build & push ${svc}", script: """
+				}
+			}
+		}
+
+		stage('Push Images') {
+			steps {
+				script {
+					def imageRepos = [
+						auth: env.AUTH_REPO,
+						client: env.CLIENT_REPO,
+						invoice: env.INVOICE_REPO,
+						payment: env.PAYMENT_REPO,
+						insights: env.INSIGHTS_REPO
+					].findAll { it.value?.trim() }
+					imageRepos.each { svc, repo ->
+						echo "[PUSH] ${svc} -> ${repo}:${env.IMAGE_TAG} and latest"
+						sh label: "Ensure & push ${svc}", script: """
 							set -euxo pipefail
-							REPO="${svc}"
-							URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO"
-							aws ecr describe-repositories --repository-names "$REPO" >/dev/null 2>&1 || aws ecr create-repository --repository-names "$REPO" >/dev/null
-							docker build --platform ${DOCKER_BUILD_PLATFORM} -t "$URI:${IMAGE_TAG}" -t "$URI:latest" "microservices/${svc}"
+							URI="${repo}"
+							aws ecr describe-repositories --repository-names "${URI##*/}" >/dev/null 2>&1 || aws ecr create-repository --repository-names "${URI##*/}" >/dev/null
 							docker push "$URI:${IMAGE_TAG}"
 							docker push "$URI:latest"
 						"""
@@ -136,29 +183,31 @@ EOF
 			}
 		}
 
-		stage('Deploy to Lambda') {
+			stage('Deploy to Lambda') {
 			steps {
 				withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
 					withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}"]) {
 						script {
-							def selected = (params.LAMBDA_SERVICES ?: '').trim()
-							def targets = []
-							if (selected) {
-								targets = selected.split(/\s*,\s*/).toList()
-							} else {
-								targets = sh(returnStdout: true, script: 'ls -1 microservices | sed "/^\\./d"').trim().split(/\r?\n/).toList()
-							}
-							targets.each { svc ->
-								echo "Updating Lambda for ${svc} -> ${env.IMAGE_TAG}"
-								sh label: "Lambda update ${svc}", script: """
-									set -euxo pipefail
-									REPO="${svc}"
-									IMAGE_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO:${IMAGE_TAG}"
-									FN_NAME="${LAMBDA_PREFIX}-${svc}-${ENVIRONMENT}"
-									aws lambda update-function-code --function-name "$FN_NAME" --image-uri "$IMAGE_URI" > /dev/null
-									aws lambda wait function-updated --function-name "$FN_NAME"
-								"""
-							}
+								def imageRepos = [
+									auth: env.AUTH_REPO,
+									client: env.CLIENT_REPO,
+									invoice: env.INVOICE_REPO,
+									payment: env.PAYMENT_REPO,
+									insights: env.INSIGHTS_REPO
+								].findAll { it.value?.trim() }
+								def targets = imageRepos.keySet().toList()
+								targets.each { svc ->
+									def repo = imageRepos[svc]
+									if (!repo) { echo "No repo for ${svc}; skipping"; return }
+									def imageUri = "${repo}:${env.IMAGE_TAG}"
+								def fnName = "${env.LAMBDA_PREFIX}-${svc}-${env.ENVIRONMENT}"
+									echo "Updating ${fnName} -> ${imageUri}"
+									sh label: "Lambda update ${svc}", script: """
+										set -euxo pipefail
+										aws lambda update-function-code --function-name "${fnName}" --image-uri "${imageUri}" > /dev/null
+										aws lambda wait function-updated --function-name "${fnName}"
+									"""
+								}
 						}
 					}
 				}

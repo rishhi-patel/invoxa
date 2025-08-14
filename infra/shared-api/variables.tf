@@ -52,3 +52,9 @@ variable "lambda_envs" {
   type        = map(map(string))
   default     = {}
 }
+
+variable "log_retention_days" {
+  description = "Retention for Lambda CloudWatch Logs groups"
+  type        = number
+  default     = 14
+}

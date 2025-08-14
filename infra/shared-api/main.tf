@@ -55,6 +55,35 @@ resource "aws_iam_role_policy_attachment" "basic" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+# Additional explicit CloudWatch Logs permissions (optional but explicit)
+data "aws_iam_policy_document" "cwlogs" {
+  statement {
+    sid     = "CreateLogGroup"
+    actions = ["logs:CreateLogGroup"]
+    resources = ["*"]
+  }
+
+  statement {
+    sid     = "WriteLogs"
+    actions = [
+      "logs:CreateLogStream",
+      "logs:PutLogEvents"
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_policy" "cwlogs" {
+  name   = "${local.name_prefix}-cwlogs"
+  policy = data.aws_iam_policy_document.cwlogs.json
+}
+
+resource "aws_iam_role_policy_attachment" "cwlogs_attach" {
+  for_each   = aws_iam_role.lambda
+  role       = each.value.name
+  policy_arn = aws_iam_policy.cwlogs.arn
+}
+
 # Lambda (container) per service
 resource "aws_lambda_function" "svc" {
   for_each = var.image_uris
@@ -72,6 +101,13 @@ resource "aws_lambda_function" "svc" {
   environment {
     variables = lookup(var.lambda_envs, each.key, {})
   }
+}
+
+# Ensure log groups exist with retention
+resource "aws_cloudwatch_log_group" "svc" {
+  for_each         = aws_lambda_function.svc
+  name             = "/aws/lambda/${each.value.function_name}"
+  retention_in_days = var.log_retention_days
 }
 
 # API → Lambda proxy integration per service

@@ -33,22 +33,24 @@ data "aws_ssm_parameters_by_path" "lambda_envs" {
 }
 
 locals {
-  # Normalize SSM parameter names to clean service keys (strip prefix, collapse leading slashes, lower)
-  services = [
+  # Extract the last path segment as the service key, lowercased (e.g., '/dev/image_uris/client' -> 'client')
+  image_service_names = [
     for full_name in data.aws_ssm_parameters_by_path.image_uris.names :
-    lower(replace(full_name, "^/${var.env}/image_uris/+", ""))
+    lower(element(split("/", full_name), length(split("/", full_name)) - 1))
   ]
 
-  # Map<service, image_uri> (keys normalized)
+  services = local.image_service_names
+
+  # Map<service, image_uri> using last segment as key
   image_uris = {
     for full_name, value in zipmap(data.aws_ssm_parameters_by_path.image_uris.names, data.aws_ssm_parameters_by_path.image_uris.values) :
-    lower(replace(full_name, "^/${var.env}/image_uris/+", "")) => value
+    lower(element(split("/", full_name), length(split("/", full_name)) - 1)) => value
   }
 
-  # Map<service, raw JSON string of env vars>; unwrap for jsondecode below, keys normalized
+  # Map<service, raw JSON string of env vars> keyed by last segment
   lambda_envs_raw = {
     for full_name, value in zipmap(data.aws_ssm_parameters_by_path.lambda_envs.names, data.aws_ssm_parameters_by_path.lambda_envs.values) :
-    lower(replace(full_name, "^/${var.env}/lambda_envs/+", "")) => value
+    lower(element(split("/", full_name), length(split("/", full_name)) - 1)) => value
   }
   lambda_envs = { for k, v in local.lambda_envs_raw : k => try(jsondecode(nonsensitive(v)), {}) }
 }
@@ -79,7 +81,7 @@ data "aws_iam_policy_document" "assume" {
 
 # Create one Lambda role per service
 resource "aws_iam_role" "lambda" {
-  for_each           = toset(local.services)
+  for_each           = var.manage_roles ? toset(local.services) : []
   name               = "${local.name_prefix}-${each.key}-role-v1"
   assume_role_policy = data.aws_iam_policy_document.assume.json
 }
@@ -119,12 +121,26 @@ resource "aws_iam_role_policy_attachment" "cwlogs_attach" {
   policy_arn = aws_iam_policy.cwlogs.arn
 }
 
+# If not managing roles, look up existing ones by name
+data "aws_iam_role" "existing" {
+  for_each = var.manage_roles ? {} : toset(local.services)
+  name     = "${local.name_prefix}-${each.key}-role-v1"
+}
+
+locals {
+  role_arn = var.manage_roles ? {
+    for k, v in aws_iam_role.lambda : k => v.arn
+  } : {
+    for k, v in data.aws_iam_role.existing : k => v.arn
+  }
+}
+
 # Lambda (container) per service
 resource "aws_lambda_function" "svc" {
   for_each = var.create_lambdas ? nonsensitive(local.image_uris) : {}
 
   function_name = "${local.name_prefix}-${each.key}"
-  role          = aws_iam_role.lambda[each.key].arn
+  role          = local.role_arn[each.key]
   package_type  = "Image"
   image_uri     = each.value
 

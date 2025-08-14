@@ -43,3 +43,9 @@ variable "create_lambdas" {
   type        = bool
   default     = false
 }
+
+variable "manage_roles" {
+  description = "Whether this module should create/manage IAM roles. If false, existing roles named <project>-<env>-<service>-role-v1 are used."
+  type        = bool
+  default     = true
+}

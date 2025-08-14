@@ -36,19 +36,19 @@ locals {
   # Normalize SSM parameter names to clean service keys (strip prefix, collapse leading slashes, lower)
   services = [
     for full_name in data.aws_ssm_parameters_by_path.image_uris.names :
-    lower(regexreplace(full_name, "^/${var.env}/image_uris/+", ""))
+    lower(replace(full_name, "^/${var.env}/image_uris/+", ""))
   ]
 
   # Map<service, image_uri> (keys normalized)
   image_uris = {
     for full_name, value in zipmap(data.aws_ssm_parameters_by_path.image_uris.names, data.aws_ssm_parameters_by_path.image_uris.values) :
-    lower(regexreplace(full_name, "^/${var.env}/image_uris/+", "")) => value
+    lower(replace(full_name, "^/${var.env}/image_uris/+", "")) => value
   }
 
   # Map<service, raw JSON string of env vars>; unwrap for jsondecode below, keys normalized
   lambda_envs_raw = {
     for full_name, value in zipmap(data.aws_ssm_parameters_by_path.lambda_envs.names, data.aws_ssm_parameters_by_path.lambda_envs.values) :
-    lower(regexreplace(full_name, "^/${var.env}/lambda_envs/+", "")) => value
+    lower(replace(full_name, "^/${var.env}/lambda_envs/+", "")) => value
   }
   lambda_envs = { for k, v in local.lambda_envs_raw : k => try(jsondecode(nonsensitive(v)), {}) }
 }

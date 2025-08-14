@@ -16,11 +16,6 @@ import {
   TrendingUp,
   TrendingDown,
 } from "lucide-react"
-import {
-  useRecentActivity,
-  useRevenueTrends,
-  useSummary,
-} from "@/hooks/useInsights"
 import { RevenueChart } from "@/components/revenue-chart"
 
 const stats = [
@@ -88,12 +83,6 @@ const recentActivity = [
 ]
 
 export function DashboardPage() {
-  const { data: summary, isLoading: l1 } = useSummary()
-  const { data: trends, isLoading: l2 } = useRevenueTrends(6)
-  const { data: activity, isLoading: l3 } = useRecentActivity(10)
-
-  console.log("Summary:", summary, trends, activity)
-
   return (
     <div className="space-y-6">
       <div>

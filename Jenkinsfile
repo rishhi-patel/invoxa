@@ -18,7 +18,7 @@ pipeline {
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-credentials']]) {
                     sh """
-                    cd infra
+                    cd infra/shared-api
                     terraform init \
                       -backend-config="bucket=invoxa-tfstate-${AWS_ACCOUNT_ID}" \
                       -backend-config="key=terraform.tfstate" \
@@ -33,7 +33,7 @@ pipeline {
             post {
                 success {
                     script {
-                        def exitCode = sh(returnStatus: true, script: "cd infra && terraform plan -detailed-exitcode -out=tfplan")
+                        def exitCode = sh(returnStatus: true, script: "cd infra/shared-api && terraform plan -detailed-exitcode -out=tfplan")
                         env.INFRA_CHANGED = (exitCode == 2) ? "true" : "false"
                         currentBuild.description = env.INFRA_CHANGED == "true" ? "Infra changes detected" : "No infra changes"
                     }
@@ -48,7 +48,7 @@ pipeline {
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-credentials']]) {
                     sh """
-                    cd infra
+                    cd infra/shared-api
                     terraform apply -auto-approve tfplan
                     """
                 }

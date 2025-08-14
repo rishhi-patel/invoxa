@@ -3,8 +3,8 @@ pipeline {
 
     environment {
         AWS_DEFAULT_REGION = "ca-central-1" // deployment region
-        TF_BACKEND_REGION  = "us-east-1"    // backend state region
-        AWS_ACCOUNT_ID     = "857736875915"
+        TF_BACKEND_REGION = "us-east-1" // backend state region
+        AWS_ACCOUNT_ID = "857736875915"
     }
 
     stages {
@@ -16,24 +16,30 @@ pipeline {
 
         stage('Terraform Init & Plan') {
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-credentials']]) {
+                withCredentials([
+                    [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-credentials']
+                ]) {
                     script {
-                        sh """
-                        cd infra/shared-api
-                        terraform init \
-                          -backend-config="bucket=invoxa-tfstate-${AWS_ACCOUNT_ID}" \
-                          -backend-config="key=terraform.tfstate" \
-                          -backend-config="region=${TF_BACKEND_REGION}" \
-                          -backend-config="dynamodb_table=invoxa-terraform-locks"
-                        """
+                        sh ""
+                        "
+                        cd infra / shared - api
+                        terraform init\
+                            -
+                            backend - config = "bucket=invoxa-tfstate-${AWS_ACCOUNT_ID}"\ -
+                            backend - config = "key=terraform.tfstate"\ -
+                            backend - config = "region=${TF_BACKEND_REGION}"\ -
+                            backend - config = "dynamodb_table=invoxa-terraform-locks"
+                        ""
+                        "
 
                         // Run terraform plan and capture exit code without failing
                         def exitCode = sh(
                             returnStatus: true,
-                            script: """
-                            cd infra/shared-api
-                            terraform plan -var-file=dev.ca.tfvars -detailed-exitcode -out=tfplan
-                            """
+                            script: ""
+                            "
+                            cd infra / shared - api terraform plan -
+                            var -file = dev.ca.tfvars - detailed - exitcode - out = tfplan ""
+                            "
                         )
 
                         if (exitCode == 2) {
@@ -54,35 +60,68 @@ pipeline {
 
         stage('Terraform Apply') {
             when {
-                expression { env.INFRA_CHANGED == "true" }
+                expression {
+                    env.INFRA_CHANGED == "true"
+                }
             }
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-credentials']]) {
-                    sh """
-                    cd infra/shared-api
-                    terraform apply -var-file=dev.ca.tfvars -auto-approve tfplan
-                    """
+                withCredentials([
+                    [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-credentials']
+                ]) {
+                    sh ""
+                    "
+                    cd infra / shared - api
+                    terraform apply -
+                        var -file = dev.ca.tfvars - auto - approve tfplan ""
+                    "
                 }
             }
         }
 
         stage('Build & Push Docker Images') {
             when {
-                expression { env.INFRA_CHANGED == "false" }
+                expression {
+                    env.INFRA_CHANGED == "false"
+                }
             }
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-credentials']]) {
+                withCredentials([
+                    [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-credentials']
+                ]) {
                     script {
                         def services = ["auth-service", "client-service", "invoice-service", "payment-service", "insights-service"]
 
-                        services.each { svc ->
-                            sh """
-                            cd microservices/${svc}
-                            docker build -t ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${svc}:latest .
-                            aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com
-                            docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${svc}:latest
-                            cd ../../
-                            """
+                        services.each {
+                            svc ->
+                                sh ""
+                            "
+                            cd microservices / $ {
+                                svc
+                            }
+                            docker build - t $ {
+                                AWS_ACCOUNT_ID
+                            }.dkr.ecr.$ {
+                                AWS_DEFAULT_REGION
+                            }.amazonaws.com / $ {
+                                svc
+                            }: latest.
+                            aws ecr get - login - password--region $ {
+                                AWS_DEFAULT_REGION
+                            } | docker login--username AWS--password - stdin $ {
+                                AWS_ACCOUNT_ID
+                            }.dkr.ecr.$ {
+                                AWS_DEFAULT_REGION
+                            }.amazonaws.com
+                            docker push $ {
+                                AWS_ACCOUNT_ID
+                            }.dkr.ecr.$ {
+                                AWS_DEFAULT_REGION
+                            }.amazonaws.com / $ {
+                                svc
+                            }: latest
+                            cd.. / .. /
+                                ""
+                            "
                         }
                     }
                 }
@@ -91,20 +130,37 @@ pipeline {
 
         stage('Update Lambda Functions') {
             when {
-                expression { env.INFRA_CHANGED == "false" }
+                expression {
+                    env.INFRA_CHANGED == "false"
+                }
             }
             steps {
-                withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-credentials']]) {
+                withCredentials([
+                    [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-credentials']
+                ]) {
                     script {
                         def services = ["auth-service", "client-service", "invoice-service", "payment-service", "insights-service"]
 
-                        services.each { svc ->
-                            sh """
-                            aws lambda update-function-code \
-                                --function-name ${svc} \
-                                --image-uri ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${svc}:latest \
-                                --region ${AWS_DEFAULT_REGION}
-                            """
+                        services.each {
+                            svc ->
+                                sh ""
+                            "
+                            aws lambda update - function -code\
+                                -- function -name $ {
+                                    svc
+                                }\
+                                --image - uri $ {
+                                    AWS_ACCOUNT_ID
+                                }.dkr.ecr.$ {
+                                    AWS_DEFAULT_REGION
+                                }.amazonaws.com / $ {
+                                    svc
+                                }: latest\
+                                --region $ {
+                                    AWS_DEFAULT_REGION
+                                }
+                            ""
+                            "
                         }
                     }
                 }

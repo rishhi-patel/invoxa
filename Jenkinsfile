@@ -4,7 +4,7 @@ pipeline {
     environment {
         AWS_DEFAULT_REGION = "ca-central-1" // deployment region
         TF_BACKEND_REGION  = "us-east-1"    // backend state region
-        AWS_ACCOUNT_ID     = credentials('aws-account-id') // store this in Jenkins creds
+        AWS_ACCOUNT_ID     = "857736875915"
     }
 
     stages {
@@ -14,36 +14,28 @@ pipeline {
             }
         }
 
-        stage('Terraform Init') {
+        stage('Terraform Init & Plan') {
             steps {
-                sh """
-                cd infra
-                terraform init \
-                  -backend-config="bucket=invoxa-tfstate-${AWS_ACCOUNT_ID}" \
-                  -backend-config="key=terraform.tfstate" \
-                  -backend-config="region=${TF_BACKEND_REGION}" \
-                  -backend-config="dynamodb_table=invoxa-terraform-locks"
-                """
+                withCredentials([usernamePassword(credentialsId: 'aws-jenkins-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                    sh """
+                    cd infra
+                    terraform init \
+                      -backend-config="bucket=invoxa-tfstate-${AWS_ACCOUNT_ID}" \
+                      -backend-config="key=terraform.tfstate" \
+                      -backend-config="region=${TF_BACKEND_REGION}" \
+                      -backend-config="dynamodb_table=invoxa-terraform-locks"
+
+                    terraform plan -detailed-exitcode -out=tfplan || exit_code=\$?
+                    exit \$exit_code
+                    """
+                }
             }
-        }
-
-        stage('Terraform Plan') {
-            steps {
-                script {
-                    def planResult = sh(
-                        script: """
-                        cd infra
-                        terraform plan -detailed-exitcode -out=tfplan
-                        """,
-                        returnStatus: true
-                    )
-
-                    if (planResult == 2) {
-                        currentBuild.description = "Infra changes detected"
-                        env.INFRA_CHANGED = "true"
-                    } else {
-                        currentBuild.description = "No infra changes"
-                        env.INFRA_CHANGED = "false"
+            post {
+                success {
+                    script {
+                        def exitCode = sh(returnStatus: true, script: "cd infra && terraform plan -detailed-exitcode -out=tfplan")
+                        env.INFRA_CHANGED = (exitCode == 2) ? "true" : "false"
+                        currentBuild.description = env.INFRA_CHANGED == "true" ? "Infra changes detected" : "No infra changes"
                     }
                 }
             }
@@ -54,10 +46,12 @@ pipeline {
                 expression { env.INFRA_CHANGED == "true" }
             }
             steps {
-                sh """
-                cd infra
-                terraform apply -auto-approve tfplan
-                """
+                withCredentials([usernamePassword(credentialsId: 'aws-jenkins-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                    sh """
+                    cd infra
+                    terraform apply -auto-approve tfplan
+                    """
+                }
             }
         }
 
@@ -66,17 +60,19 @@ pipeline {
                 expression { env.INFRA_CHANGED == "false" }
             }
             steps {
-                script {
-                    def services = ["auth-service", "client-service", "invoice-service", "payment-service", "insights-service"]
+                withCredentials([usernamePassword(credentialsId: 'aws-jenkins-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                    script {
+                        def services = ["auth-service", "client-service", "invoice-service", "payment-service", "insights-service"]
 
-                    services.each { svc ->
-                        sh """
-                        cd microservices/${svc}
-                        docker build -t ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${svc}:latest .
-                        aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com
-                        docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${svc}:latest
-                        cd ../../
-                        """
+                        services.each { svc ->
+                            sh """
+                            cd microservices/${svc}
+                            docker build -t ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${svc}:latest .
+                            aws ecr get-login-password --region ${AWS_DEFAULT_REGION} | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com
+                            docker push ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${svc}:latest
+                            cd ../../
+                            """
+                        }
                     }
                 }
             }
@@ -87,16 +83,18 @@ pipeline {
                 expression { env.INFRA_CHANGED == "false" }
             }
             steps {
-                script {
-                    def services = ["auth-service", "client-service", "invoice-service", "payment-service", "insights-service"]
+                withCredentials([usernamePassword(credentialsId: 'aws-jenkins-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                    script {
+                        def services = ["auth-service", "client-service", "invoice-service", "payment-service", "insights-service"]
 
-                    services.each { svc ->
-                        sh """
-                        aws lambda update-function-code \
-                            --function-name ${svc} \
-                            --image-uri ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${svc}:latest \
-                            --region ${AWS_DEFAULT_REGION}
-                        """
+                        services.each { svc ->
+                            sh """
+                            aws lambda update-function-code \
+                                --function-name ${svc} \
+                                --image-uri ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/${svc}:latest \
+                                --region ${AWS_DEFAULT_REGION}
+                            """
+                        }
                     }
                 }
             }

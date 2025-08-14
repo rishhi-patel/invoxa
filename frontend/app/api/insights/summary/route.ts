@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { authFrom, errorJson } from "../../_utils/auth"
 import { forward } from "@/lib/fetcher"
 
-const BASE = process.env.BASE_API_URL!
+const BASE = process.env.NEXT_PUBLIC_BASE_API_URL!
 
 export async function GET(req: Request) {
   try {

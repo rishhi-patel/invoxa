@@ -2,7 +2,7 @@ import { forward } from "@/lib/fetcher"
 import { NextResponse } from "next/server"
 import { authFrom, json, errorJson } from "../../_utils/auth"
 
-const BASE = process.env.BASE_API_URL!
+const BASE = process.env.NEXT_PUBLIC_BASE_API_URL!
 
 type Ctx = { params: { id: string } }
 

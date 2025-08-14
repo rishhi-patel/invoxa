@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        AWS_DEFAULT_REGION = "ca-central-1" // deployment region
+        AWS_DEFAULT_REGION = "us-east-1" // deployment region
         TF_BACKEND_REGION  = "us-east-1"    // backend state region
         AWS_ACCOUNT_ID     = "857736875915"
     }

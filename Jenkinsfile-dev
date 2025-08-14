@@ -69,7 +69,7 @@ pipeline {
 				steps {
 					dir(env.TF_DIR) {
 						withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
-							withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}", "TF_VAR_project=invoxa", "TF_VAR_env=${env.ENVIRONMENT}", "TF_VAR_region=${env.AWS_REGION}", "TF_VAR_manage_roles=false"]) {
+							withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}", "TF_VAR_project=invoxa", "TF_VAR_env=${env.ENVIRONMENT}", "TF_VAR_region=${env.AWS_REGION}", "TF_VAR_manage_roles=true"]) {
 								sh label: 'Terraform init', script: '''
 									set -eu
 									terraform --version
@@ -86,7 +86,7 @@ pipeline {
 				steps {
 					dir(env.TF_DIR) {
 						withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
-							withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}", "TF_VAR_project=invoxa", "TF_VAR_env=${env.ENVIRONMENT}", "TF_VAR_region=${env.AWS_REGION}", "TF_VAR_manage_roles=false"]) {
+							withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}", "TF_VAR_project=invoxa", "TF_VAR_env=${env.ENVIRONMENT}", "TF_VAR_region=${env.AWS_REGION}", "TF_VAR_manage_roles=true"]) {
 								sh label: 'Terraform plan', script: 'terraform plan -input=false -var="create_lambdas=false" -out=tfplan'
 							}
 						}
@@ -98,7 +98,7 @@ pipeline {
 				steps {
 					dir(env.TF_DIR) {
 						withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
-							withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}", "TF_VAR_project=invoxa", "TF_VAR_env=${env.ENVIRONMENT}", "TF_VAR_region=${env.AWS_REGION}", "TF_VAR_manage_roles=false"]) {
+							withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}", "TF_VAR_project=invoxa", "TF_VAR_env=${env.ENVIRONMENT}", "TF_VAR_region=${env.AWS_REGION}", "TF_VAR_manage_roles=true"]) {
 								sh label: 'Terraform apply', script: 'terraform apply -input=false -auto-approve tfplan'
 							}
 						}
@@ -119,6 +119,18 @@ pipeline {
 			}
 		}
 
+	stage('Login to Public ECR') {
+		steps {
+			withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+				withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}"]) {
+					sh label: 'ECR Public Login', script: '''
+						set -e
+						aws ecr-public get-login-password --region us-east-1 | docker login --username AWS --password-stdin public.ecr.aws
+					'''
+				}
+			}
+		}
+	}
 			stage('Build Images') {
 			steps {
 				script {
@@ -207,7 +219,7 @@ pipeline {
 			steps {
 				dir(env.TF_DIR) {
 					withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
-							withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}", "TF_VAR_project=invoxa", "TF_VAR_env=${env.ENVIRONMENT}", "TF_VAR_region=${env.AWS_REGION}", "TF_VAR_manage_roles=false"]) {
+						withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}", "TF_VAR_project=invoxa", "TF_VAR_env=${env.ENVIRONMENT}", "TF_VAR_region=${env.AWS_REGION}", "TF_VAR_manage_roles=true"]) {
 								sh label: 'Terraform plan (lambdas)', script: 'terraform plan -input=false -var="create_lambdas=true" -out=tfplan'
 						}
 					}
@@ -219,7 +231,7 @@ pipeline {
 			steps {
 				dir(env.TF_DIR) {
 					withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
-							withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}", "TF_VAR_project=invoxa", "TF_VAR_env=${env.ENVIRONMENT}", "TF_VAR_region=${env.AWS_REGION}", "TF_VAR_manage_roles=false"]) {
+						withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}", "TF_VAR_project=invoxa", "TF_VAR_env=${env.ENVIRONMENT}", "TF_VAR_region=${env.AWS_REGION}", "TF_VAR_manage_roles=true"]) {
 								sh label: 'Terraform apply (lambdas)', script: 'terraform apply -input=false -auto-approve tfplan'
 						}
 					}

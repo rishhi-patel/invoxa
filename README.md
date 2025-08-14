@@ -136,14 +136,3 @@ npm run dev
 
 Sends emails and generates pixel-perfect PDF invoices — effortlessly and reliably.
 See [notification-service README](./microservices/notification-service/README.md) for setup and usage.
-
----
-
-## 👤 Maintainer
-
-**Rishikumar Patel**
-Founder – **EXOcode Labs**
-📧 Email: [patel.rishi3001@gmail.com](mailto:patel.rishi3001@gmail.com)
-🌐 Website: [exocodelabs.tech](https://exocodelabs.tech)
-
----

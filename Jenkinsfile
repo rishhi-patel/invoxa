@@ -10,7 +10,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/rishhi-patel/invoxa.git'
+                git branch: 'feature/pipeline-lambda', url: 'https://github.com/rishhi-patel/invoxa.git'
             }
         }
 

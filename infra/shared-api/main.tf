@@ -45,7 +45,7 @@ data "aws_iam_policy_document" "assume" {
 # Create one Lambda role per service
 resource "aws_iam_role" "lambda" {
   for_each           = toset(local.services)
-  name               = "${local.name_prefix}-${each.key}-role"
+  name               = "${local.name_prefix}-${each.key}-role-v1"
   assume_role_policy = data.aws_iam_policy_document.assume.json
 }
 

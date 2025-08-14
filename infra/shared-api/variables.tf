@@ -29,7 +29,7 @@ variable "lambda_memory_mb" {
 variable "lambda_timeout_seconds" {
   description = "Lambda timeout per function"
   type        = number
-  default     = 15
+  default     = 30
 }
 
 variable "image_uris" {

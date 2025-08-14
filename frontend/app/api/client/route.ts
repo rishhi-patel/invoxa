@@ -1,16 +1,19 @@
 import { NextResponse } from "next/server"
-
-import { authFrom, errorJson } from "../_utils/auth"
+import { authFrom, json, errorJson } from "../_utils/auth"
 import { forward } from "@/lib/fetcher"
 
-const BASE = process.env.INVOICE_SERVICE_URL!
+const BASE = process.env.BASE_API_URL!
 
+// GET /api/client?search=... (optional passthrough)
 export async function GET(req: Request) {
+  const url = new URL(req.url)
+  const search = url.searchParams.get("search")
+  const target = search
+    ? `${BASE}/api/client?search=${encodeURIComponent(search)}`
+    : `${BASE}/api/client`
+
   try {
-    const auth = authFrom(req)
-    const data = await forward(`${BASE}/api/invoice`, {
-      headers: Object.keys(auth).length > 0 ? auth : {},
-    })
+    const data = await forward(target, { headers: authFrom(req) })
     return NextResponse.json(data)
   } catch (e: any) {
     const { status, body } = errorJson(e)
@@ -18,16 +21,14 @@ export async function GET(req: Request) {
   }
 }
 
+// POST /api/client
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const data = await forward(`${BASE}/api/invoice`, {
+    const data = await forward(`${BASE}/api/client`, {
       method: "POST",
-      headers: {
-        ...authFrom(req),
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
+      headers: authFrom(req),
+      ...json(body),
     })
     return NextResponse.json(data, { status: 201 })
   } catch (e: any) {

@@ -222,10 +222,6 @@ export function LoginPage() {
                 </form>
               </TabsContent>
             </Tabs>
-
-            <div className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-              Demo credentials: demo@invoxa.com / demo123
-            </div>
           </CardContent>
         </Card>
 

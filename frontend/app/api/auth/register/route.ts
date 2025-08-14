@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 
-const AUTH_URL = process.env.AUTH_SERVICE_URL!
+const AUTH_URL = process.env.NEXT_PUBLIC_BASE_API_URL!
 
 export async function POST(req: Request) {
   try {

@@ -43,7 +43,9 @@ export async function forward<T = any>(
 
   let res: Response
   try {
-    res = await fetch(url, {
+    console.log(`[fetcher] ${init?.method || "GET"} ${url}`)
+
+    res = await fetch(url + "/", {
       cache: "no-store",
       ...init,
       headers: mergedHeaders,

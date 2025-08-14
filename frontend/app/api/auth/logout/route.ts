@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server"
-import { clearAuthCookie } from "../../_utils/auth"
 
 export async function POST() {
-  clearAuthCookie()
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("auth_token")
+  }
   return NextResponse.json({ ok: true })
 }

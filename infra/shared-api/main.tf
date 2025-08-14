@@ -68,10 +68,6 @@ resource "aws_lambda_function" "svc" {
   memory_size   = var.lambda_memory_mb
   architectures = [var.architecture] # "x86_64" or "arm64"
 
-  # IMPORTANT: your tsconfig outputs dist/src/..., keep command stable
-  image_config {
-    command = ["dist/src/handler.handler"]
-  }
 
   environment {
     variables = lookup(var.lambda_envs, each.key, {})

@@ -35,7 +35,7 @@ Authorization: Bearer {{token}}
 
 ### CREATE CLIENT
 ### @name createClient
-POST {{base}}/api/clients
+POST {{base}}/api/client
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
@@ -49,15 +49,15 @@ Content-Type: application/json
 @clientId = {{createClient.response.body.$._id}}
 
 ### LIST CLIENTS
-GET {{base}}/api/clients
+GET {{base}}/api/client
 Authorization: Bearer {{token}}
 
 ### GET CLIENT BY ID
-GET {{base}}/api/clients/{{clientId}}
+GET {{base}}/api/client/{{clientId}}
 Authorization: Bearer {{token}}
 
 ### UPDATE CLIENT
-PUT {{base}}/api/clients/{{clientId}}
+PUT {{base}}/api/client/{{clientId}}
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
@@ -66,7 +66,7 @@ Content-Type: application/json
 }
 
 ### DELETE CLIENT (optional)
-# DELETE {{base}}/api/clients/{{clientId}}
+# DELETE {{base}}/api/client/{{clientId}}
 # Authorization: Bearer {{token}}
 
 

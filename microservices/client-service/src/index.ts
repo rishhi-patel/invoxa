@@ -12,10 +12,17 @@ const PORT = process.env.PORT || 3001
 app.use(express.json())
 app.use(requestLogger)
 
-app.get("/", (_req, res) => res.send("Client Service is running 🚀"))
+app.get("/api/client/health", (_req, res) => {
+  res.status(200).json({ status: "ok", service: "client-service" })
+})
 app.use("/api/client", clientRoutes)
 app.get("/logger-test", (req, res) => {
   res.status(200).send("OK")
+})
+
+// Not found handler with service name
+app.use((_req, res) => {
+  res.status(404).json({ error: "Not Found", service: "client-service" })
 })
 
 app.use(errorHandler)

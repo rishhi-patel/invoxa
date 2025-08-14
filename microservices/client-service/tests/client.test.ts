@@ -44,7 +44,7 @@ describe("Client API", () => {
   })
 
   it("should create a new client", async () => {
-    const res = await request(app).post("/api/clients").send({
+    const res = await request(app).post("/api/client").send({
       name: "Rishhi",
       email: "rishhi@example.com",
       phone: "1234567890",
@@ -65,7 +65,7 @@ describe("Client API", () => {
       createdBy: TEST_USER_ID,
     })
     const res = await request(app)
-      .get("/api/clients")
+      .get("/api/client")
       .set("Authorization", TEST_TOKEN)
     expect(res.status).toBe(200)
     expect(res.body.length).toBe(1)
@@ -81,7 +81,7 @@ describe("Client API", () => {
       createdBy: TEST_USER_ID,
     })
     const res = await request(app)
-      .get(`/api/clients/${client._id}`)
+      .get(`/api/client/${client._id}`)
       .set("Authorization", TEST_TOKEN)
     expect(res.status).toBe(200)
     expect(res.body.name).toBe("R")
@@ -91,7 +91,7 @@ describe("Client API", () => {
   it("should return 404 for non-existing client", async () => {
     const fakeId = new mongoose.Types.ObjectId()
     const res = await request(app)
-      .get(`/api/clients/${fakeId}`)
+      .get(`/api/client/${fakeId}`)
       .set("Authorization", TEST_TOKEN)
     expect(res.status).toBe(404)
     expect(res.body.message).toBe("Client not found")
@@ -106,7 +106,7 @@ describe("Client API", () => {
       createdBy: TEST_USER_ID,
     })
     const res = await request(app)
-      .put(`/api/clients/${client._id}`)
+      .put(`/api/client/${client._id}`)
       .set("Authorization", TEST_TOKEN)
       .send({ name: "Updated" })
     expect(res.status).toBe(200)
@@ -116,7 +116,7 @@ describe("Client API", () => {
 
   it("should return 404 on update if client not found", async () => {
     const res = await request(app)
-      .put(`/api/clients/${new mongoose.Types.ObjectId()}`)
+      .put(`/api/client/${new mongoose.Types.ObjectId()}`)
       .set("Authorization", TEST_TOKEN)
       .send({ name: "Test" })
     expect(res.status).toBe(404)
@@ -131,21 +131,21 @@ describe("Client API", () => {
       createdBy: TEST_USER_ID,
     })
     const res = await request(app)
-      .delete(`/api/clients/${client._id}`)
+      .delete(`/api/client/${client._id}`)
       .set("Authorization", TEST_TOKEN)
     expect(res.status).toBe(204)
   })
 
   it("should return 404 when deleting non-existent client", async () => {
     const res = await request(app)
-      .delete(`/api/clients/${new mongoose.Types.ObjectId()}`)
+      .delete(`/api/client/${new mongoose.Types.ObjectId()}`)
       .set("Authorization", TEST_TOKEN)
     expect(res.status).toBe(404)
   })
 
   it("should return 500 on client creation error", async () => {
     const res = await request(app)
-      .post("/api/clients")
+      .post("/api/client")
       .set("Authorization", TEST_TOKEN)
       .send({
         name: "Test",

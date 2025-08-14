@@ -3,7 +3,7 @@ import dotenv from "dotenv"
 dotenv.config()
 
 const CLIENT_SERVICE_URL =
-  process.env.CLIENT_SERVICE_URL || "http://localhost:3001/api/clients"
+  process.env.CLIENT_SERVICE_URL || "http://localhost:3001/api/client"
 const SERVICE_TOKEN = process.env.SERVICE_TOKEN
 
 export async function fetchClientLite(id: string) {

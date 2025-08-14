@@ -1,15 +1,18 @@
-# ---- build/runtime: Lambda Python 3.11 ----
+# ---- Lambda Python 3.11 runtime ----
 FROM public.ecr.aws/lambda/python:3.11
+
+# Lambda executes from /var/task by default
 WORKDIR ${LAMBDA_TASK_ROOT}
 
-# Install deps
+# 1) Install Python deps
 COPY requirements.txt .
 RUN python -m pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copy app
-COPY . .
+# 2) Copy your app code
+COPY app.py ./
+COPY handler.py ./
+COPY src ./src
 
-# Handler module/function:
-# Matches Terraform handler_commands["insights"] = "handler.handler"
+# 3) Set the handler: <module>.<function>
 CMD [ "handler.handler" ]

@@ -1,11 +1,14 @@
+# @BASE_URL = https://zxlnv1v3xb.execute-api.us-east-1.amazonaws.com
+@BASE_URL = http://localhost:3001
+
 ### Health check
-GET https://zxlnv1v3xb.execute-api.us-east-1.amazonaws.com/
+GET {{BASE_URL}}/
 Authorization: Bearer {{TOKEN}}
 
 @TOKEN= eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4OTUwZDU1OTAyY2MzZTdlYWJhNzQ5NyIsImVtYWlsIjoicmlzaGhpQGV4YW1wbGUxLmNvbSIsImlhdCI6MTc1NDYwNjAyNn0.lnc-lg1lSNbU605IA5cVUmPNc6KIu-dgUrUOXFuWYL0
 
 ### Create a new client
-POST https://zxlnv1v3xb.execute-api.us-east-1.amazonaws.com/api/client
+POST {{BASE_URL}}/api/client
 Content-Type: application/json
 Authorization: Bearer {{TOKEN}}
 
@@ -17,17 +20,17 @@ Authorization: Bearer {{TOKEN}}
 }
 
 ### Get all clients
-GET https://zxlnv1v3xb.execute-api.us-east-1.amazonaws.com/api/clients
+GET {{BASE_URL}}/api/client
 Authorization: Bearer {{TOKEN}}
 
 @client_id = 171438b5-57d3-455e-98b4-59734d013828
 
 ### Get a single client by ID
-GET https://zxlnv1v3xb.execute-api.us-east-1.amazonaws.com/api/clients/{{client_id}}
+GET {{BASE_URL}}/api/client/{{client_id}}
 Authorization: Bearer {{TOKEN}}
 
 ### Update a client
-PUT https://zxlnv1v3xb.execute-api.us-east-1.amazonaws.com/api/clients/{{client_id}}
+PUT {{BASE_URL}}/api/client/{{client_id}}
 Content-Type: application/json
 Authorization: Bearer {{TOKEN}}
 
@@ -39,5 +42,5 @@ Authorization: Bearer {{TOKEN}}
 }
 
 ### Delete a client
-DELETE https://zxlnv1v3xb.execute-api.us-east-1.amazonaws.com/api/clients/{{client_id}}
+DELETE {{BASE_URL}}/api/client/{{client_id}}
 Authorization: Bearer {{TOKEN}}

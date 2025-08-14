@@ -81,7 +81,7 @@ data "aws_iam_policy_document" "assume" {
 
 # Create one Lambda role per service
 resource "aws_iam_role" "lambda" {
-  for_each           = var.manage_roles ? toset(local.services) : []
+  for_each           = var.manage_roles ? { for s in local.services : s => true } : {}
   name               = "${local.name_prefix}-${each.key}-role-v1"
   assume_role_policy = data.aws_iam_policy_document.assume.json
 }
@@ -123,7 +123,7 @@ resource "aws_iam_role_policy_attachment" "cwlogs_attach" {
 
 # If not managing roles, look up existing ones by name
 data "aws_iam_role" "existing" {
-  for_each = var.manage_roles ? {} : toset(local.services)
+  for_each = var.manage_roles ? {} : { for s in local.services : s => true }
   name     = "${local.name_prefix}-${each.key}-role-v1"
 }
 
@@ -137,7 +137,7 @@ locals {
 
 # Lambda (container) per service
 resource "aws_lambda_function" "svc" {
-  for_each = var.create_lambdas ? nonsensitive(local.image_uris) : {}
+  for_each = var.create_lambdas ? nonsensitive(local.image_uris) : tomap({})
 
   function_name = "${local.name_prefix}-${each.key}"
   role          = local.role_arn[each.key]

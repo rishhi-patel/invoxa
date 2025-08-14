@@ -3,30 +3,20 @@ pipeline {
 
 	options {
 		timestamps()
-		ansiColor('xterm')
 		disableConcurrentBuilds()
 	}
 
 	parameters {
-		choice(name: 'TF_ACTION', choices: ['plan_only', 'apply'], description: 'Terraform action to perform')
 		string(name: 'IMAGE_TAG', defaultValue: '', description: 'Existing ECR image tag to deploy (e.g., v1.2.3). Required')
-		string(name: 'LAMBDA_SERVICES', defaultValue: '', description: 'Comma-separated service names to deploy to Lambda. Leave blank to deploy all')
 	}
 
 	environment {
 		ENVIRONMENT = 'prod'
-		AWS_REGION = 'us-east-1'
+	AWS_REGION = 'us-east-1'
 		AWS_CREDENTIALS_ID = 'aws-jenkins-credentials' // Jenkins AWS creds ID
 		LAMBDA_PREFIX = 'invoxa'                // Fallback prefix if TF outputs are unavailable
 		TF_DIR = 'infra/shared-api'             // Terraform directory
 		DOCKER_BUILD_PLATFORM = 'linux/amd64'
-
-		// ECR repositories without tags (configure in Jenkins env)
-		AUTH_REPO = ''
-		CLIENT_REPO = ''
-		INVOICE_REPO = ''
-		PAYMENT_REPO = ''
-		INSIGHTS_REPO = ''
 	}
 
 	stages {
@@ -34,8 +24,6 @@ pipeline {
 			when { not { branch 'main' } }
 			steps { error 'Production deploys are restricted to main branch' }
 		}
-
-		// No SCM checkout stage required as pipeline is loaded from SCM
 
 		stage('Resolve AWS Account') {
 			steps {
@@ -48,8 +36,28 @@ pipeline {
 				}
 			}
 		}
-
-			// No tfvars parsing; repos are provided through environment variables
+        
+		stage('Resolve ECR repos from SSM') {
+			steps {
+				withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+					withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}"]) {
+						script {
+							def fetchRepo = { svc ->
+								def paramName = "/${env.ENVIRONMENT}/image_uris/${svc}"
+								def value = sh(returnStdout: true, label: "Get ${svc} repo uri", script: "aws ssm get-parameter --name '${paramName}' --query 'Parameter.Value' --output text").trim()
+								return value.contains(':') ? value.split(':')[0] : value
+							}
+							env.AUTH_REPO     = fetchRepo('auth')
+							env.CLIENT_REPO   = fetchRepo('client')
+							env.INVOICE_REPO  = fetchRepo('invoice')
+							env.PAYMENT_REPO  = fetchRepo('payment')
+							env.INSIGHTS_REPO = fetchRepo('insights')
+							echo "Resolved ECR repos: AUTH=${env.AUTH_REPO}, CLIENT=${env.CLIENT_REPO}, INVOICE=${env.INVOICE_REPO}, PAYMENT=${env.PAYMENT_REPO}, INSIGHTS=${env.INSIGHTS_REPO}"
+						}
+					}
+				}
+			}
+		}
 
 			stage('Select Image Tag') {
 				steps {
@@ -63,74 +71,48 @@ pipeline {
 				}
 			}
 
-					stage('Terraform Init') {
-						steps {
-							dir(env.TF_DIR) {
-								withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
-									withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}"]) {
-										sh label: 'Terraform init', script: '''
-											set -euxo pipefail
-											terraform --version
-											terraform init -input=false
-											terraform workspace select prod || terraform workspace new prod
-										'''
-									}
-								}
-							}
+		stage('Terraform Init') {
+			steps {
+				dir(env.TF_DIR) {
+					withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+						withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}", "TF_VAR_project=invoxa", "TF_VAR_env=${env.ENVIRONMENT}", "TF_VAR_region=${env.AWS_REGION}", "TF_VAR_manage_roles=false"]) {
+							sh label: 'Terraform init', script: '''
+								set -eu
+								terraform --version
+								terraform init -input=false
+								terraform workspace select prod || terraform workspace new prod
+							'''
 						}
 					}
+				}
+			}
+		}
 
-					stage('Terraform Plan') {
-						steps {
-							dir(env.TF_DIR) {
-								withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
-									withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}"]) {
-										sh label: 'Terraform plan', script: 'terraform plan -input=false -out=tfplan'
-									}
-								}
-							}
+		stage('Terraform Plan (infra only)') {
+			steps {
+				dir(env.TF_DIR) {
+					withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+						withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}", "TF_VAR_project=invoxa", "TF_VAR_env=${env.ENVIRONMENT}", "TF_VAR_region=${env.AWS_REGION}", "TF_VAR_manage_roles=false"]) {
+							sh label: 'Terraform plan', script: 'terraform plan -input=false -var="create_lambdas=false" -out=tfplan'
 						}
 					}
+				}
+			}
+		}
 
-					stage('Terraform Apply (manual)') {
-						when { expression { return params.TF_ACTION == 'apply' } }
-						steps {
-							dir(env.TF_DIR) {
-								input message: 'Approve Terraform apply to PROD?', ok: 'Apply'
-								withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
-									withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}"]) {
-										sh label: 'Terraform apply', script: 'terraform apply -input=false -auto-approve tfplan'
-									}
-								}
-							}
+		stage('Terraform Apply (infra only)') {
+			steps {
+				dir(env.TF_DIR) {
+					withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+						withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}", "TF_VAR_project=invoxa", "TF_VAR_env=${env.ENVIRONMENT}", "TF_VAR_region=${env.AWS_REGION}", "TF_VAR_manage_roles=false"]) {
+							sh label: 'Terraform apply', script: 'terraform apply -input=false -auto-approve tfplan'
 						}
 					}
+				}
+			}
+		}
 
-					stage('Terraform Destroy (manual)') {
-						steps {
-							dir(env.TF_DIR) {
-								script {
-									def proceed = false
-									try {
-										timeout(time: 30, unit: 'SECONDS') {
-											input message: 'Destroy PROD infra? This is destructive.', ok: 'Destroy'
-										}
-										proceed = true
-									} catch (err) {
-										echo 'Destroy skipped (no approval).'
-									}
-									if (proceed) {
-										withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
-											withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}"]) {
-												sh label: 'Terraform destroy', script: 'terraform destroy -input=false -auto-approve'
-											}
-										}
-									}
-								}
-							}
-						}
-					}
-
+        
 		stage('Login to ECR') {
 			steps {
 				withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
@@ -144,73 +126,51 @@ pipeline {
 			}
 		}
 
-				stage('Load Infra Metadata') {
-					steps {
-						dir(env.TF_DIR) {
-							script {
-								def tfvars = readFile(file: env.TF_VARS_FILE)
-								def imageMap = [:]
-								def inBlock = false
-								tfvars.readLines().each { line ->
-									def l = line.trim()
-									if (l.startsWith('image_uris')) { inBlock = true; return }
-									if (inBlock && l.startsWith('}')) { inBlock = false; return }
-									if (inBlock && l =~ /^(\w+)\s*=\s*"([^"]+)"/) {
-										def m = (l =~ /^(\w+)\s*=\s*"([^"]+)"/)[0]
-										def svc = m[1]
-										def uri = m[2]
-										def repo = uri.contains(':') ? uri.substring(0, uri.lastIndexOf(':')) : uri
-										imageMap[svc] = repo
-									}
-								}
-								env.IMAGE_REPOS_JSON = groovy.json.JsonOutput.toJson(imageMap)
-
-								def fnJson = ''
-								withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
-									withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}"]) {
-										fnJson = sh(returnStdout: true, label: 'Read TF outputs (function_names)', script: 'terraform output -json function_names 2>/dev/null || echo "{}"').trim()
-									}
-								}
-								env.LAMBDA_FUNCTIONS_JSON = fnJson
-							}
-						}
-					}
-				}
-
-				stage('Confirm Image Tag (manual)') {
-					steps {
-						script {
-							input message: "Deploy IMAGE_TAG=${params.IMAGE_TAG} to PROD?", ok: 'Proceed'
-						}
-					}
-				}
-
-				stage('Deploy to Lambda') {
+		stage('Update SSM image_uris with tag') {
 			steps {
 				withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
 					withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}"]) {
 						script {
-									def imageRepos = [
-										auth: env.AUTH_REPO,
-										client: env.CLIENT_REPO,
-										invoice: env.INVOICE_REPO,
-										payment: env.PAYMENT_REPO,
-										insights: env.INSIGHTS_REPO
-									].findAll { it.value?.trim() }
-								def selected = (params.LAMBDA_SERVICES ?: '').trim()
-								def targets = selected ? selected.split(/\s*,\s*/).toList() : imageRepos.keySet().toList()
-								targets.each { svc ->
-									def repo = imageRepos[svc]
-									if (!repo) { echo "No repo for ${svc}; skipping"; return }
-									def imageUri = "${repo}:${env.IMAGE_TAG}"
-										def fnName = "${env.LAMBDA_PREFIX}-${svc}-${env.ENVIRONMENT}"
-									echo "Updating ${fnName} -> ${imageUri}"
-									sh label: "Lambda update ${svc}", script: """
-										set -euxo pipefail
-										aws lambda update-function-code --function-name "${fnName}" --image-uri "${imageUri}" > /dev/null
-										aws lambda wait function-updated --function-name "${fnName}"
-									"""
-								}
+							def imageRepos = [
+								auth: env.AUTH_REPO,
+								client: env.CLIENT_REPO,
+								invoice: env.INVOICE_REPO,
+								payment: env.PAYMENT_REPO,
+								insights: env.INSIGHTS_REPO
+							].findAll { it.value?.trim() }
+							imageRepos.each { svc, repo ->
+								def paramName = "/${env.ENVIRONMENT}/image_uris/${svc}"
+								def value = "${repo}:${env.IMAGE_TAG}"
+								echo "Updating SSM ${paramName} -> ${value}"
+								sh label: "SSM put-parameter ${svc}", script: """
+									set -eu
+									aws ssm put-parameter --name "${paramName}" --type String --value "${value}" --overwrite >/dev/null
+								"""
+							}
+						}
+					}
+				}
+			}
+		}
+
+		stage('Terraform Plan (lambdas)') {
+			steps {
+				dir(env.TF_DIR) {
+					withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+						withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}", "TF_VAR_project=invoxa", "TF_VAR_env=${env.ENVIRONMENT}", "TF_VAR_region=${env.AWS_REGION}", "TF_VAR_manage_roles=false"]) {
+							sh label: 'Terraform plan (lambdas)', script: 'terraform plan -input=false -var="create_lambdas=true" -out=tfplan'
+						}
+					}
+				}
+			}
+		}
+
+		stage('Terraform Apply (lambdas)') {
+			steps {
+				dir(env.TF_DIR) {
+					withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+						withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}", "TF_VAR_project=invoxa", "TF_VAR_env=${env.ENVIRONMENT}", "TF_VAR_region=${env.AWS_REGION}", "TF_VAR_manage_roles=false"]) {
+							sh label: 'Terraform apply (lambdas)', script: 'terraform apply -input=false -auto-approve tfplan'
 						}
 					}
 				}

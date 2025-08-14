@@ -176,6 +176,33 @@ pipeline {
 			}
 		}
 
+		stage('Update SSM image_uris with tag') {
+			steps {
+				withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+					withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}"]) {
+						script {
+							def imageRepos = [
+								auth: env.AUTH_REPO,
+								client: env.CLIENT_REPO,
+								invoice: env.INVOICE_REPO,
+								payment: env.PAYMENT_REPO,
+								insights: env.INSIGHTS_REPO
+							].findAll { it.value?.trim() }
+							imageRepos.each { svc, repo ->
+								def paramName = "/${env.ENVIRONMENT}/image_uris/${svc}"
+								def value = "${repo}:${env.IMAGE_TAG}"
+								echo "Updating SSM ${paramName} -> ${value}"
+								sh label: "SSM put-parameter ${svc}", script: """
+									set -eu
+									aws ssm put-parameter --name "${paramName}" --type String --value "${value}" --overwrite >/dev/null
+								"""
+							}
+						}
+					}
+				}
+			}
+		}
+
 			stage('Terraform Plan (lambdas)') {
 			steps {
 				dir(env.TF_DIR) {

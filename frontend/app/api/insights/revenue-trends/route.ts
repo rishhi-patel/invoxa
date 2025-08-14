@@ -10,7 +10,9 @@ export async function GET(req: Request) {
   try {
     const headers = authFrom(req)
     const data = await forward(
-      `${BASE}/api/insight/revenue-trends?months=${encodeURIComponent(months)}`,
+      `${BASE}/api/insights/revenue-trends?months=${encodeURIComponent(
+        months
+      )}`,
       { headers }
     )
     return NextResponse.json(data)

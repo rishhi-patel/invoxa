@@ -1,18 +1,17 @@
-# ---- Lambda Python 3.11 runtime ----
 FROM public.ecr.aws/lambda/python:3.11
-
-# Lambda executes from /var/task by default
 WORKDIR ${LAMBDA_TASK_ROOT}
 
-# 1) Install Python deps
+# Make src/ resolvable (for "from src.routes.metrics import metrics_bp")
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONPATH="${LAMBDA_TASK_ROOT}:${LAMBDA_TASK_ROOT}/src"
+
 COPY requirements.txt .
 RUN python -m pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# 2) Copy your app code
-COPY app.py ./
-COPY handler.py ./
+COPY app.py handler.py ./
 COPY src ./src
 
-# 3) Set the handler: <module>.<function>
+# Keep handler in the image (no Terraform override)
 CMD [ "handler.handler" ]

@@ -1,7 +1,8 @@
-import awsgi  # AWS WSGI adapter
-from app import app
+import awsgi
+from app import create_app
+
+flask_app = create_app()
 
 
 def handler(event, context):
-    # Converts API Gateway HTTP API event to WSGI and invokes Flask app
-    return awsgi.response(app, event, context)
+    return awsgi.response(flask_app, event, context)  # ✅ works in latest awsgi

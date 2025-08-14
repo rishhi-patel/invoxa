@@ -116,15 +116,15 @@ Content-Type: application/json
 ### ─────────────── INSIGHTS ───────────────
 
 ### SUMMARY CARDS
-GET {{base}}/api/insight/summary
+GET {{base}}/api/insights/summary
 Authorization: Bearer {{token}}
 
 ### REVENUE TRENDS
-GET {{base}}/api/insight/revenue-trends?months=3
+GET {{base}}/api/insights/revenue-trends?months=3
 Authorization: Bearer {{token}}
 
 ### RECENT ACTIVITY
-GET {{base}}/api/insight/recent-activity?limit=5
+GET {{base}}/api/insights/recent-activity?limit=5
 Authorization: Bearer {{token}}
 
 

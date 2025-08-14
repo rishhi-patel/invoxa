@@ -10,7 +10,7 @@ export async function GET(req: Request) {
   try {
     const headers = authFrom(req)
     const data = await forward(
-      `${BASE}/api/insight/recent-activity?limit=${encodeURIComponent(limit)}`,
+      `${BASE}/api/insights/recent-activity?limit=${encodeURIComponent(limit)}`,
       { headers }
     )
     return NextResponse.json(data)

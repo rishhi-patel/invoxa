@@ -7,11 +7,11 @@ def create_app():
     app = Flask(__name__)
     CORS(app)
 
-    @app.get("/api/insight/health")
+    @app.get("/api/insights/health")
     def health():
         return jsonify(ok=True, service="insights-service")
 
-    @app.get("/api/insight/ping")
+    @app.get("/api/insights/ping")
     def ping():
         return jsonify(pong=True, q=request.args.get("q", ""))
 

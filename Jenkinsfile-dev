@@ -7,19 +7,14 @@ pipeline {
 	}
 
 	environment {
-		ENVIRONMENT = 'dev'
+		PROJECT = 'invoxa'
+        ENVIRONMENT = 'dev'
 		AWS_REGION = 'eu-west-1'
 		AWS_CREDENTIALS_ID = 'aws-jenkins-credentials' // Jenkins AWS creds ID
 		LAMBDA_PREFIX = 'invoxa'                // Fallback prefix if TF outputs are unavailable
 		TF_DIR = 'infra/shared-api'             // Terraform directory
 		DOCKER_BUILD_PLATFORM = 'linux/amd64'   // Ensure linux/amd64 images compatible with Lambda
 
-		// ECR repositories without tags (set these in Jenkins or edit here)
-		AUTH_REPO = '857736875915.dkr.ecr.eu-west-1.amazonaws.com/invoxa-dev-auth'
-		CLIENT_REPO = '857736875915.dkr.ecr.eu-west-1.amazonaws.com/invoxa-dev-client'
-		INVOICE_REPO = '857736875915.dkr.ecr.eu-west-1.amazonaws.com/invoxa-dev-invoice'
-		PAYMENT_REPO = '857736875915.dkr.ecr.eu-west-1.amazonaws.com/invoxa-dev-payment'
-		INSIGHTS_REPO = '857736875915.dkr.ecr.eu-west-1.amazonaws.com/invoxa-dev-insights'
 	}
 
 	stages {
@@ -31,6 +26,28 @@ pipeline {
 						env.AWS_ACCOUNT_ID = sh(returnStdout: true, script: 'aws sts get-caller-identity --query Account --output text').trim()
 					}
 					echo "Using AWS Account: ${env.AWS_ACCOUNT_ID} in ${env.AWS_REGION}"
+				}
+			}
+		}
+
+		stage('Resolve ECR repos from SSM') {
+			steps {
+				withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+					withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}"]) {
+						script {
+							def fetchRepo = { svc ->
+								def paramName = "/${env.ENVIRONMENT}/image_uris/${svc}"
+								def value = sh(returnStdout: true, label: "Get ${svc} repo uri", script: "aws ssm get-parameter --name '${paramName}' --query 'Parameter.Value' --output text").trim()
+								return value.contains(':') ? value.split(':')[0] : value
+							}
+							env.AUTH_REPO     = fetchRepo('auth')
+							env.CLIENT_REPO   = fetchRepo('client')
+							env.INVOICE_REPO  = fetchRepo('invoice')
+							env.PAYMENT_REPO  = fetchRepo('payment')
+							env.INSIGHTS_REPO = fetchRepo('insights')
+							echo "Resolved ECR repos: AUTH=${env.AUTH_REPO}, CLIENT=${env.CLIENT_REPO}, INVOICE=${env.INVOICE_REPO}, PAYMENT=${env.PAYMENT_REPO}, INSIGHTS=${env.INSIGHTS_REPO}"
+						}
+					}
 				}
 			}
 		}
@@ -105,6 +122,7 @@ pipeline {
 			stage('Build Images') {
 			steps {
 				script {
+					sh label: 'Load ECR env', script: 'test -f .ecr_env && . ./.ecr_env || true'
 						def imageRepos = [
 							auth: env.AUTH_REPO,
 							client: env.CLIENT_REPO,
@@ -126,7 +144,7 @@ pipeline {
 								set -eu
 								URI='${repo}'
 								BUILD_CTX='${buildCtx}'
-								docker build --platform ${DOCKER_BUILD_PLATFORM} -t "$URI:${IMAGE_TAG}" -t "$URI:latest" "$BUILD_CTX"
+								docker build --platform ${DOCKER_BUILD_PLATFORM} -t "\$URI:${IMAGE_TAG}" -t "\$URI:latest" "\$BUILD_CTX"
 							"""
 						}
 				}
@@ -148,10 +166,10 @@ pipeline {
 						sh label: "Ensure & push ${svc}", script: """
 							set -eu
 							URI='${repo}'
-							REPO_NAME="$(basename "$URI")"
-							aws ecr describe-repositories --repository-names "$REPO_NAME" >/dev/null 2>&1 || aws ecr create-repository --repository-names "$REPO_NAME" >/dev/null
-							docker push "$URI:${IMAGE_TAG}"
-							docker push "$URI:latest"
+							REPO_NAME="\$(basename \"\$URI\")"
+							aws ecr describe-repositories --repository-names "\$REPO_NAME" >/dev/null 2>&1 || aws ecr create-repository --repository-names "\$REPO_NAME" >/dev/null
+							docker push "\$URI:${IMAGE_TAG}"
+							docker push "\$URI:latest"
 						"""
 					}
 				}

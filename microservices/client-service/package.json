@@ -5,15 +5,18 @@
   "scripts": {
     "dev": "ts-node-dev --respawn src/index.ts",
     "build": "tsc",
+    "lambda": "node dist/handler.js",
     "start": "node dist/index.js",
     "test": "jest"
   },
   "dependencies": {
+    "@vendia/serverless-express": "^4.12.6",
+    "bcryptjs": "^3.0.2",
+    "chalk": "^4.1.2",
     "@aws-sdk/client-dynamodb": "^3.540.0",
     "@aws-sdk/lib-dynamodb": "^3.540.0",
     "@types/jsonwebtoken": "^9.0.10",
     "axios": "^1.11.0",
-    "chalk": "^4.1.2",
     "dotenv": "^17.2.0",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",

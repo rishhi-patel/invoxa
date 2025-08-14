@@ -6,10 +6,10 @@ const BASE = process.env.CLIENT_SERVICE_URL!
 
 type Ctx = { params: { id: string } }
 
-// GET /api/clients/:id
+// GET /api/client/:id
 export async function GET(_: Request, { params }: Ctx) {
   try {
-    const data = await forward(`${BASE}/api/clients/${params.id}`, {
+    const data = await forward(`${BASE}/api/client/${params.id}`, {
       headers: authFrom(_),
     })
     return NextResponse.json(data)
@@ -19,11 +19,11 @@ export async function GET(_: Request, { params }: Ctx) {
   }
 }
 
-// PUT /api/clients/:id
+// PUT /api/client/:id
 export async function PUT(req: Request, { params }: Ctx) {
   try {
     const body = await req.json()
-    const data = await forward(`${BASE}/api/clients/${params.id}`, {
+    const data = await forward(`${BASE}/api/client/${params.id}`, {
       method: "PUT",
       headers: authFrom(req),
       ...json(body),
@@ -35,10 +35,10 @@ export async function PUT(req: Request, { params }: Ctx) {
   }
 }
 
-// DELETE /api/clients/:id
+// DELETE /api/client/:id
 export async function DELETE(_: Request, { params }: Ctx) {
   try {
-    await forward(`${BASE}/api/clients/${params.id}`, {
+    await forward(`${BASE}/api/client/${params.id}`, {
       method: "DELETE",
       headers: authFrom(_),
     })

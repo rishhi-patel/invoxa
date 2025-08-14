@@ -1,0 +1,103 @@
+terraform {
+  required_version = ">= 1.6"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = ">= 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = var.region
+}
+
+locals {
+  name_prefix = "${var.project}-${var.env}"
+  # Ensure services are lowered/normalized if needed
+  services = keys(var.image_uris)
+}
+
+# -------- Shared HTTP API (one for all services) --------
+resource "aws_apigatewayv2_api" "http" {
+  name          = "${local.name_prefix}-http"
+  protocol_type = "HTTP"
+}
+
+resource "aws_apigatewayv2_stage" "default" {
+  api_id      = aws_apigatewayv2_api.http.id
+  name        = "$default"
+  auto_deploy = true
+}
+
+# -------- Per-service Lambda + integration + route --------
+# IAM assume policy (shared doc)
+data "aws_iam_policy_document" "assume" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+}
+
+# Create one Lambda role per service
+resource "aws_iam_role" "lambda" {
+  for_each           = toset(local.services)
+  name               = "${local.name_prefix}-${each.key}-role"
+  assume_role_policy = data.aws_iam_policy_document.assume.json
+}
+
+resource "aws_iam_role_policy_attachment" "basic" {
+  for_each   = aws_iam_role.lambda
+  role       = each.value.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+# Lambda (container) per service
+resource "aws_lambda_function" "svc" {
+  for_each = var.image_uris
+
+  function_name = "${local.name_prefix}-${each.key}"
+  role          = aws_iam_role.lambda[each.key].arn
+  package_type  = "Image"
+  image_uri     = each.value
+
+  timeout       = var.lambda_timeout_seconds
+  memory_size   = var.lambda_memory_mb
+  architectures = [var.architecture] # "x86_64" or "arm64"
+
+
+  environment {
+    variables = lookup(var.lambda_envs, each.key, {})
+  }
+}
+
+# API → Lambda proxy integration per service
+resource "aws_apigatewayv2_integration" "svc" {
+  for_each               = aws_lambda_function.svc
+  api_id                 = aws_apigatewayv2_api.http.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = each.value.arn
+  payload_format_version = "2.0"
+  timeout_milliseconds   = var.lambda_timeout_seconds * 1000
+}
+
+# Route per service: ANY /api/<service>/{proxy+}
+resource "aws_apigatewayv2_route" "svc" {
+  for_each  = aws_apigatewayv2_integration.svc
+  api_id    = aws_apigatewayv2_api.http.id
+  route_key = "ANY /api/${each.key}/{proxy+}"
+  target    = "integrations/${each.value.id}"
+}
+
+# Permission so API Gateway can invoke each Lambda
+resource "aws_lambda_permission" "svc_apigw" {
+  for_each      = aws_lambda_function.svc
+  statement_id  = "AllowAPIGatewayInvoke-${each.key}"
+  action        = "lambda:InvokeFunction"
+  function_name = each.value.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.http.execution_arn}/*/*/api/${each.key}/*"
+}

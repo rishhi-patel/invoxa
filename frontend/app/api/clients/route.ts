@@ -4,13 +4,13 @@ import { forward } from "@/lib/fetcher"
 
 const BASE = process.env.CLIENT_SERVICE_URL!
 
-// GET /api/clients?search=... (optional passthrough)
+// GET /api/client?search=... (optional passthrough)
 export async function GET(req: Request) {
   const url = new URL(req.url)
   const search = url.searchParams.get("search")
   const target = search
-    ? `${BASE}/api/clients?search=${encodeURIComponent(search)}`
-    : `${BASE}/api/clients`
+    ? `${BASE}/api/client?search=${encodeURIComponent(search)}`
+    : `${BASE}/api/client`
 
   try {
     const data = await forward(target, { headers: authFrom(req) })
@@ -21,11 +21,11 @@ export async function GET(req: Request) {
   }
 }
 
-// POST /api/clients
+// POST /api/client
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const data = await forward(`${BASE}/api/clients`, {
+    const data = await forward(`${BASE}/api/client`, {
       method: "POST",
       headers: authFrom(req),
       ...json(body),

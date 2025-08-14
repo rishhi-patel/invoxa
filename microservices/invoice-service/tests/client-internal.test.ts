@@ -47,7 +47,7 @@ afterEach(async () => {
 describe("Invoice API (S2S snapshot, no client model)", () => {
   it("creates an invoice and stores a client snapshot", async () => {
     const res = await request(app)
-      .post("/api/invoices")
+      .post("/api/invoice")
       .send({
         clientId: new mongoose.Types.ObjectId().toString(),
         items: [{ name: "Dev", quantity: 10, unitPrice: 50 }],
@@ -85,7 +85,7 @@ describe("Invoice API (S2S snapshot, no client model)", () => {
       taxRate: 0,
     })
 
-    const res = await request(app).get("/api/invoices").expect(200)
+    const res = await request(app).get("/api/invoice").expect(200)
     expect(res.body[1].number).toBe("INV-MINE")
   })
 
@@ -105,7 +105,7 @@ describe("Invoice API (S2S snapshot, no client model)", () => {
     })
 
     await request(app)
-      .put(`/api/invoices/${inv._id}`)
+      .put(`/api/invoice/${inv._id}`)
       .send({ notes: "just a note" })
       .expect(200)
 
@@ -128,7 +128,7 @@ describe("Invoice API (S2S snapshot, no client model)", () => {
     })
 
     const res = await request(app)
-      .post(`/api/invoices/${inv._id}/notify`)
+      .post(`/api/invoice/${inv._id}/notify`)
       .expect(200)
     expect(res.body).toEqual({ sent: true })
     expect(sendMailMock).toHaveBeenCalledTimes(1)

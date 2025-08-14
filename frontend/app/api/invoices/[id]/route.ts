@@ -9,7 +9,7 @@ type Ctx = { params: { id: string } }
 
 export async function GET(_: Request, { params }: Ctx) {
   try {
-    const data = await forward(`${BASE}/api/invoices/${params.id}`, {
+    const data = await forward(`${BASE}/api/invoice/${params.id}`, {
       headers: authFrom(_),
     })
     return NextResponse.json(data)
@@ -22,7 +22,7 @@ export async function GET(_: Request, { params }: Ctx) {
 export async function PUT(req: Request, { params }: Ctx) {
   try {
     const body = await req.json()
-    const data = await forward(`${BASE}/api/invoices/${params.id}`, {
+    const data = await forward(`${BASE}/api/invoice/${params.id}`, {
       method: "PUT",
       headers: authFrom(req),
       ...json(body),
@@ -36,7 +36,7 @@ export async function PUT(req: Request, { params }: Ctx) {
 
 export async function DELETE(_: Request, { params }: Ctx) {
   try {
-    await forward(`${BASE}/api/invoices/${params.id}`, {
+    await forward(`${BASE}/api/invoice/${params.id}`, {
       method: "DELETE",
       headers: authFrom(_),
     })

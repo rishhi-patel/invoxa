@@ -1,8 +1,12 @@
-@TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4OTUwZDU1OTAyY2MzZTdlYWJhNzQ5NyIsImVtYWlsIjoicmlzaGhpQGV4YW1wbGUxLmNvbSIsImlhdCI6MTc1NDk2MTI4M30.nhV9rvQDcjuIgPlba_j4S1nx6DVE_ahYcLUszkbePmE
+# @BASE_URL=http://localhost:3003/api/invoice
+@BASE_URL = https://zxlnv1v3xb.execute-api.us-east-1.amazonaws.com/api/invoice
+@TOKEN= eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4OTUwZDU1OTAyY2MzZTdlYWJhNzQ5NyIsImVtYWlsIjoicmlzaGhpQGV4YW1wbGUxLmNvbSIsImlhdCI6MTc1NTE0OTQyOH0.L2iIxqEW7yzyF19rJoEya_FOwonKcnR7j0Hp8fB5fkA
+
 @CLIENT_ID=689a910a4ee433c931e5bca1
 @INVOICE_ID=6896eec0c13d68fa4acd3ee8
+
 ### Create (createdBy comes from JWT)
-POST http://localhost:3003/api/invoices
+POST {{BASE_URL}}/
 Authorization: Bearer {{TOKEN}}
 Content-Type: application/json
 
@@ -16,11 +20,11 @@ Content-Type: application/json
 }
 
 ### List only my invoices
-GET http://localhost:3003/api/invoices
+GET {{BASE_URL}}/
 Authorization: Bearer {{TOKEN}}
 
 ### Update status -> triggers email
-PUT http://localhost:3003/api/invoices/{{INVOICE_ID}}
+PUT {{BASE_URL}}/invoice/{{INVOICE_ID}}
 Authorization: Bearer {{TOKEN}}
 Content-Type: application/json
 
@@ -29,7 +33,6 @@ Content-Type: application/json
   "status": "SENT"
 }
 
-
 ### Manual resend
-POST http://localhost:3003/api/invoices/{{INVOICE_ID}}/notify
+POST {{BASE_URL}}/invoice/{{INVOICE_ID}}/notify
 Authorization: Bearer {{TOKEN}}

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express"
-import bcrypt from "bcrypt"
+import bcrypt from "bcryptjs"
+
 import { UserModel } from "../models/user.model"
 import { decodeJwsToken, encodeJwsToken } from "../utils/jwt"
 

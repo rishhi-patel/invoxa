@@ -1,20 +1,17 @@
-# Use official Python image
-FROM python:3.11-slim
+FROM public.ecr.aws/lambda/python:3.11
+WORKDIR ${LAMBDA_TASK_ROOT}
 
-# Set working directory
-WORKDIR /app
+# Make src/ resolvable (for "from src.routes.metrics import metrics_bp")
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONPATH="${LAMBDA_TASK_ROOT}:${LAMBDA_TASK_ROOT}/src"
 
-# Copy requirements file
 COPY requirements.txt .
+RUN python -m pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+COPY app.py handler.py ./
+COPY src ./src
 
-# Copy application code
-COPY . .
-
-# Set environment variable for Flask
-ENV FLASK_APP=app.py
-
-# Run the Flask app
-CMD ["flask", "run", "--host=0.0.0.0"]
+# Keep handler in the image (no Terraform override)
+CMD [ "handler.handler" ]

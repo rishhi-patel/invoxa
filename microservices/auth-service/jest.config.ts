@@ -11,6 +11,10 @@ const config: Config = {
     "!src/utils/**",
     "!src/index.ts",
   ],
+  moduleNameMapper: {
+    "^bcrypt$": "bcryptjs",
+  },
+
   // coverageThreshold: {
   //   global: {
   //     branches: 75,

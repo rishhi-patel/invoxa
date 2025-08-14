@@ -1,0 +1,183 @@
+pipeline {
+	agent any
+
+	options {
+		timestamps()
+		ansiColor('xterm')
+		disableConcurrentBuilds()
+	}
+
+	parameters {
+		string(name: 'RELEASE_VERSION', defaultValue: '', description: 'Override semver tag (e.g., v0.0.7). Leave blank to auto-bump patch from the latest git tag or start at v0.0.0')
+		booleanParam(name: 'FORCE_INFRA_APPLY', defaultValue: false, description: 'Run Terraform apply regardless of detected changes')
+		string(name: 'LAMBDA_SERVICES', defaultValue: '', description: 'Comma-separated service names to deploy to Lambda. Leave blank to deploy all Dockerized microservices')
+	}
+
+	environment {
+		ENVIRONMENT = 'dev'
+		AWS_REGION = 'us-east-1'
+		AWS_CREDENTIALS_ID = 'aws-dev'          // Jenkins Credentials (AWS access key + secret)
+		LAMBDA_PREFIX = 'invoxa'                // Prefix for Lambda function names: <prefix>-<service>-<env>
+		TF_DIR = 'terraform'                    // Terraform root directory
+		TF_VARS_FILE = 'terraform/dev.tfvars'   // TF vars file for dev
+		DOCKER_BUILD_PLATFORM = 'linux/amd64'   // Ensure linux/amd64 images compatible with Lambda
+	}
+
+	stages {
+		stage('Checkout') {
+			steps {
+				checkout scm
+				sh 'git --no-pager log -1 --oneline || true'
+			}
+		}
+
+		stage('Resolve AWS Account') {
+			steps {
+				withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+					sh 'aws --version || true'
+					script {
+						env.AWS_ACCOUNT_ID = sh(returnStdout: true, script: 'aws sts get-caller-identity --query Account --output text').trim()
+					}
+					echo "Using AWS Account: ${env.AWS_ACCOUNT_ID} in ${env.AWS_REGION}"
+				}
+			}
+		}
+
+		stage('Determine Release Version') {
+			steps {
+				script {
+					def override = (params.RELEASE_VERSION ?: '').trim()
+					if (override) {
+						env.IMAGE_TAG = override
+					} else {
+						sh label: 'Compute next semver tag', script: '''
+							set -e
+							last=$(git describe --tags --abbrev=0 --match "v*" 2>/dev/null || echo "")
+							if [ -z "$last" ]; then
+								echo v0.0.0 > .version
+							else
+								ver=${last#v}
+								IFS='.' read -r MAJ MIN PAT <<EOF
+$ver
+EOF
+								PAT=$((PAT+1))
+								echo v${MAJ}.${MIN}.${PAT} > .version
+							fi
+						'''
+						env.IMAGE_TAG = sh(returnStdout: true, script: 'cat .version').trim()
+					}
+					currentBuild.displayName = "#${env.BUILD_NUMBER} ${env.ENVIRONMENT} ${env.IMAGE_TAG}"
+					echo "Release version: ${env.IMAGE_TAG}"
+				}
+			}
+		}
+
+		stage('Terraform Init/Plan/Apply (conditional)') {
+			when {
+				anyOf {
+					expression { return params.FORCE_INFRA_APPLY }
+			  changeset pattern: 'terraform/**', comparator: 'ANT'
+			  changeset pattern: 'infra/**', comparator: 'ANT'
+				}
+			}
+			steps {
+				dir(env.TF_DIR) {
+					withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+						withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}"]) {
+							sh label: 'Terraform apply', script: '''
+								set -euxo pipefail
+								terraform --version
+								terraform init -input=false
+								terraform workspace select dev || terraform workspace new dev
+								terraform plan -input=false -var-file="${WORKSPACE}/${TF_VARS_FILE}" -out=tfplan
+								terraform apply -input=false -auto-approve tfplan
+							'''
+						}
+					}
+				}
+			}
+		}
+
+		stage('Login to ECR') {
+			steps {
+				withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+					withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}"]) {
+						sh label: 'ECR Login', script: '''
+							set -e
+							aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com"
+						'''
+					}
+				}
+			}
+		}
+
+		stage('Build and Push Images') {
+			steps {
+				script {
+					def allServices = sh(returnStdout: true, script: 'ls -1 microservices | sed "/^\\./d"').trim().split(/\r?\n/)
+					allServices.each { svc ->
+						def dockerfilePath = "microservices/${svc}/Dockerfile"
+						if (!fileExists(dockerfilePath)) {
+							echo "Skipping ${svc}: no Dockerfile"
+							return
+						}
+						echo "Building ${svc} as ${env.IMAGE_TAG}"
+						sh label: "Build & push ${svc}", script: """
+							set -euxo pipefail
+							REPO="${svc}"
+							URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO"
+							aws ecr describe-repositories --repository-names "$REPO" >/dev/null 2>&1 || aws ecr create-repository --repository-names "$REPO" >/dev/null
+							docker build --platform ${DOCKER_BUILD_PLATFORM} -t "$URI:${IMAGE_TAG}" -t "$URI:latest" "microservices/${svc}"
+							docker push "$URI:${IMAGE_TAG}"
+							docker push "$URI:latest"
+						"""
+					}
+				}
+			}
+		}
+
+		stage('Deploy to Lambda') {
+			steps {
+				withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+					withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}"]) {
+						script {
+							def selected = (params.LAMBDA_SERVICES ?: '').trim()
+							def targets = []
+							if (selected) {
+								targets = selected.split(/\s*,\s*/).toList()
+							} else {
+								targets = sh(returnStdout: true, script: 'ls -1 microservices | sed "/^\\./d"').trim().split(/\r?\n/).toList()
+							}
+							targets.each { svc ->
+								echo "Updating Lambda for ${svc} -> ${env.IMAGE_TAG}"
+								sh label: "Lambda update ${svc}", script: """
+									set -euxo pipefail
+									REPO="${svc}"
+									IMAGE_URI="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$REPO:${IMAGE_TAG}"
+									FN_NAME="${LAMBDA_PREFIX}-${svc}-${ENVIRONMENT}"
+									aws lambda update-function-code --function-name "$FN_NAME" --image-uri "$IMAGE_URI" > /dev/null
+									aws lambda wait function-updated --function-name "$FN_NAME"
+								"""
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	post {
+		success {
+			echo "${env.ENVIRONMENT} deploy complete: ${env.IMAGE_TAG}"
+		}
+		failure {
+			echo 'Pipeline failed. Check logs above.'
+		}
+		always {
+			script {
+				echo "Artifacts: version=${env.IMAGE_TAG}, account=${env.AWS_ACCOUNT_ID}, region=${env.AWS_REGION}"
+			}
+		}
+	}
+}
+

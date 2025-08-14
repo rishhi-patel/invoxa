@@ -6,7 +6,7 @@ const BASE = process.env.INVOICE_SERVICE_URL!
 
 export async function POST(_: Request, { params }: { params: { id: string } }) {
   try {
-    const data = await forward(`${BASE}/api/invoices/${params.id}/notify`, {
+    const data = await forward(`${BASE}/api/invoice/${params.id}/notify`, {
       method: "POST",
       headers: authFrom(_),
     })

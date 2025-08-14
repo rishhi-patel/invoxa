@@ -31,7 +31,7 @@ export function useUpdateInvoice(id: string) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: any) =>
-      api(`/api/invoices/${id}`, { method: "PUT", ...json(body) }),
+      api(`/api/invoice/${id}`, { method: "PUT", ...json(body) }),
     onSuccess: () => {
       toast.success("Invoice updated")
       qc.invalidateQueries({ queryKey: ["invoices"] })
@@ -45,7 +45,7 @@ export function useUpdateInvoice(id: string) {
 export function useDeleteInvoice(id: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: () => api(`/api/invoices/${id}`, { method: "DELETE" }),
+    mutationFn: () => api(`/api/invoice/${id}`, { method: "DELETE" }),
     onSuccess: () => {
       toast.success("Invoice deleted")
       qc.invalidateQueries({ queryKey: ["invoices"] })

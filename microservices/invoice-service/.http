@@ -20,7 +20,7 @@ GET http://localhost:3003/api/invoices
 Authorization: Bearer {{TOKEN}}
 
 ### Update status -> triggers email
-PUT http://localhost:3003/api/invoices/{{INVOICE_ID}}
+PUT http://localhost:3003/api/invoice/{{INVOICE_ID}}
 Authorization: Bearer {{TOKEN}}
 Content-Type: application/json
 
@@ -31,5 +31,5 @@ Content-Type: application/json
 
 
 ### Manual resend
-POST http://localhost:3003/api/invoices/{{INVOICE_ID}}/notify
+POST http://localhost:3003/api/invoice/{{INVOICE_ID}}/notify
 Authorization: Bearer {{TOKEN}}

@@ -96,11 +96,11 @@ GET {{base}}/api/invoices
 Authorization: Bearer {{token}}
 
 ### GET INVOICE BY ID
-GET {{base}}/api/invoices/{{invoiceId}}
+GET {{base}}/api/invoice/{{invoiceId}}
 Authorization: Bearer {{token}}
 
 ### UPDATE INVOICE (mark as PAID)
-PUT {{base}}/api/invoices/{{invoiceId}}
+PUT {{base}}/api/invoice/{{invoiceId}}
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
@@ -109,22 +109,22 @@ Content-Type: application/json
 }
 
 ### DELETE INVOICE (optional)
-# DELETE {{base}}/api/invoices/{{invoiceId}}
+# DELETE {{base}}/api/invoice/{{invoiceId}}
 # Authorization: Bearer {{token}}
 
 
 ### ─────────────── INSIGHTS ───────────────
 
 ### SUMMARY CARDS
-GET {{base}}/api/insights/summary
+GET {{base}}/api/insight/summary
 Authorization: Bearer {{token}}
 
 ### REVENUE TRENDS
-GET {{base}}/api/insights/revenue-trends?months=3
+GET {{base}}/api/insight/revenue-trends?months=3
 Authorization: Bearer {{token}}
 
 ### RECENT ACTIVITY
-GET {{base}}/api/insights/recent-activity?limit=5
+GET {{base}}/api/insight/recent-activity?limit=5
 Authorization: Bearer {{token}}
 
 

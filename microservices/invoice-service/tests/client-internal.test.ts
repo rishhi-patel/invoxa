@@ -105,7 +105,7 @@ describe("Invoice API (S2S snapshot, no client model)", () => {
     })
 
     await request(app)
-      .put(`/api/invoices/${inv._id}`)
+      .put(`/api/invoice/${inv._id}`)
       .send({ notes: "just a note" })
       .expect(200)
 
@@ -128,7 +128,7 @@ describe("Invoice API (S2S snapshot, no client model)", () => {
     })
 
     const res = await request(app)
-      .post(`/api/invoices/${inv._id}/notify`)
+      .post(`/api/invoice/${inv._id}/notify`)
       .expect(200)
     expect(res.body).toEqual({ sent: true })
     expect(sendMailMock).toHaveBeenCalledTimes(1)

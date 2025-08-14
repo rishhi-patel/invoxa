@@ -6,7 +6,7 @@ const BASE = process.env.INSIGHTS_SERVICE_URL!
 
 export async function GET(req: Request) {
   try {
-    const data = await forward(`${BASE}/api/insights/summary`, {
+    const data = await forward(`${BASE}/api/insight/summary`, {
       headers: authFrom(req),
     })
     console.log("Summary data:", data)

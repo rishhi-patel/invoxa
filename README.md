@@ -1,7 +1,6 @@
 # 🚀 INVOXA – Microservices Platform
 
-A modular, scalable, and cloud-ready **invoice-as-a-service** platform.
-INVOXA enables **authentication**, **client management**, **invoice generation**, **payments**, and **analytics** with a clean microservices architecture.
+A modular, scalable, and cloud-ready **invoice-as-a-service** platform. INVOXA enables **authentication**, **client management**, **invoice generation**, **payments**, **notifications**, and **analytics** with a clean microservices architecture.
 
 Built with ❤️ by **EXOcode Labs**.
 
@@ -12,11 +11,12 @@ Built with ❤️ by **EXOcode Labs**.
 ```
 invoxa/
 ├── microservices/
-│   ├── auth-service/        # Authentication & JWT handling (Node.js / Express)
-│   ├── client-service/      # Client data management (Node.js / Express)
-│   ├── invoice-service/     # Invoice creation and management (Node.js / Express)
-│   ├── payment-service/     # Payment processing (Python / Flask)
-│   └── insights-service/    # Email + PDF invoice generation (Node.js / Puppeteer)
+│   ├── [auth-service](./microservices/auth-service/README.md)        # Authentication & JWT handling (Node.js / Express)
+│   ├── [client-service](./microservices/client-service/README.md)    # Client data management (Node.js / Express)
+│   ├── [invoice-service](./microservices/invoice-service/README.md)  # Invoice creation and management (Node.js / Express)
+│   ├── [payment-service](./microservices/payment-service/README.md)  # Payment processing (Python / Flask)
+│   ├── [notification-service](./microservices/notification-service/README.md) # Email & PDF notifications (Node.js / Puppeteer)
+│   └── [insights-service](./microservices/insights-service/README.md) # Analytics & reporting (Node.js / Express)
 ├── frontend/                # Web frontend (Next.js or React-based)
 ├── infra/                   # Infrastructure-as-Code (Terraform / AWS CDK)
 └── docker-compose.yaml      # Local development composition
@@ -41,7 +41,7 @@ Before running locally, ensure you have:
 Clone the repository:
 
 ```bash
-git clone https://github.com/rishhi-patel/invoxa.git
+git clone https://github.com/your-username/invoxa.git
 cd invoxa
 ```
 
@@ -55,14 +55,15 @@ docker-compose up --build
 
 ## 🌐 Service Endpoints (Local Development)
 
-| Service          | Technology      | Port / URL                              |
-| ---------------- | --------------- | --------------------------------------- |
-| Auth Service     | Node.js/Express | http://localhost:3001                   |
-| Client Service   | Node.js/Express | http://localhost:5001                   |
-| Invoice Service  | Node.js/Express | http://localhost:3002                   |
-| Payment Service  | Python/Flask    | http://localhost:5002                   |
-| Insights Service | Node.js/Express | http://localhost:3003                   |
-| Frontend         | Next.js/React   | http://localhost:3000 (if separate run) |
+| Service              | Technology      | Port / URL                              | Reference                                                                     |
+| -------------------- | --------------- | --------------------------------------- | ----------------------------------------------------------------------------- |
+| Auth Service         | Node.js/Express | http://localhost:3001                   | [auth-service README](./microservices/auth-service/README.md)                 |
+| Client Service       | Node.js/Express | http://localhost:5001                   | [client-service README](./microservices/client-service/README.md)             |
+| Invoice Service      | Node.js/Express | http://localhost:3002                   | [invoice-service README](./microservices/invoice-service/README.md)           |
+| Payment Service      | Python/Flask    | http://localhost:5002                   | [payment-service README](./microservices/payment-service/README.md)           |
+| Notification Service | Node.js/Express | http://localhost:3003                   | [notification-service README](./microservices/notification-service/README.md) |
+| Insights Service     | Node.js/Express | http://localhost:3004                   | [insights-service README](./microservices/insights-service/README.md)         |
+| Frontend             | Next.js/React   | http://localhost:3000 (if separate run) | [frontend README](./frontend/README.md)                                       |
 
 ---
 
@@ -81,19 +82,19 @@ docker-compose up --build
 - ✅ JWT-based authentication
 - ✅ Modular microservices
 - ✅ MongoDB integration for persistence
+- ✅ Analytics dashboard in frontend
 - ✅ GitHub Actions-based CI/CD deployment
-- ⏳ Analytics dashboard in frontend
 - ⏳ AWS S3 for file storage
-- ⏳ Email + PDF generation with Puppeteer (Insights Service)
+- ⏳ Email + PDF generation with Puppeteer (Notification Service)
 
 ---
 
 ## 🧑‍💻 Local Development Workflow
 
-Run **only a specific service**:
+Run **only a specific service** (see each microservice's README for details):
 
 ```bash
-cd microservices/<serviice>
+cd microservices/<service-name>
 npm install
 npm run dev
 ```
@@ -120,12 +121,29 @@ npm run dev
 **Frontend**
 
 - React / Next.js
-- Zustandfor state management
+- Zustand for state management
 
 **DevOps & Infra**
 
 - Docker & Docker Compose
 - Terraform / AWS CDK
 - AWS ECS, ECR, Route 53, ALB, Secrets Manager
-- GitHub Actions for build and test
-- Jenkins
+- GitHub Actions for CI/CD
+
+---
+
+## 🔔 Notification Service
+
+Sends emails and generates pixel-perfect PDF invoices — effortlessly and reliably.
+See [notification-service README](./microservices/notification-service/README.md) for setup and usage.
+
+---
+
+## 👤 Maintainer
+
+**Rishikumar Patel**
+Founder – **EXOcode Labs**
+📧 Email: [patel.rishi3001@gmail.com](mailto:patel.rishi3001@gmail.com)
+🌐 Website: [exocodelabs.tech](https://exocodelabs.tech)
+
+---

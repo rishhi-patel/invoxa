@@ -47,7 +47,7 @@ afterEach(async () => {
 describe("Invoice API (S2S snapshot, no client model)", () => {
   it("creates an invoice and stores a client snapshot", async () => {
     const res = await request(app)
-      .post("/api/invoices")
+      .post("/api/invoice")
       .send({
         clientId: new mongoose.Types.ObjectId().toString(),
         items: [{ name: "Dev", quantity: 10, unitPrice: 50 }],
@@ -85,7 +85,7 @@ describe("Invoice API (S2S snapshot, no client model)", () => {
       taxRate: 0,
     })
 
-    const res = await request(app).get("/api/invoices").expect(200)
+    const res = await request(app).get("/api/invoice").expect(200)
     expect(res.body[1].number).toBe("INV-MINE")
   })
 

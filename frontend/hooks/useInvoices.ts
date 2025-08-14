@@ -6,7 +6,7 @@ import { toast } from "sonner"
 export function useInvoices() {
   const q = useQuery({
     queryKey: ["invoices"],
-    queryFn: () => api("/api/invoices"),
+    queryFn: () => api("/api/invoice"),
   })
   useOnError(q.error)
   return q
@@ -16,7 +16,7 @@ export function useCreateInvoice() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (body: any) =>
-      api("/api/invoices", { method: "POST", ...json(body) }),
+      api("/api/invoice", { method: "POST", ...json(body) }),
     onSuccess: () => {
       toast.success("Invoice created")
       qc.invalidateQueries({ queryKey: ["invoices"] })

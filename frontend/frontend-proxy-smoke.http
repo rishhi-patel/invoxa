@@ -74,7 +74,7 @@ Content-Type: application/json
 
 ### CREATE INVOICE
 ### @name createInvoice
-POST {{base}}/api/invoices
+POST {{base}}/api/invoice
 Authorization: Bearer {{token}}
 Content-Type: application/json
 
@@ -92,7 +92,7 @@ Content-Type: application/json
 @invoiceId = {{createInvoice.response.body.$._id}}
 
 ### LIST INVOICES
-GET {{base}}/api/invoices
+GET {{base}}/api/invoice
 Authorization: Bearer {{token}}
 
 ### GET INVOICE BY ID

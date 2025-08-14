@@ -8,7 +8,7 @@ const BASE = process.env.INVOICE_SERVICE_URL!
 export async function GET(req: Request) {
   try {
     const auth = authFrom(req)
-    const data = await forward(`${BASE}/api/invoices`, {
+    const data = await forward(`${BASE}/api/invoice`, {
       headers: Object.keys(auth).length > 0 ? auth : {},
     })
     return NextResponse.json(data)
@@ -21,7 +21,7 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const data = await forward(`${BASE}/api/invoices`, {
+    const data = await forward(`${BASE}/api/invoice`, {
       method: "POST",
       headers: {
         ...authFrom(req),

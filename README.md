@@ -127,4 +127,5 @@ npm run dev
 - Docker & Docker Compose
 - Terraform / AWS CDK
 - AWS ECS, ECR, Route 53, ALB, Secrets Manager
-- GitHub Actions for CI/CD
+- GitHub Actions for build and test
+- Jenkins

@@ -52,3 +52,11 @@ variable "lambda_envs" {
   type        = map(map(string))
   default     = {}
 }
+
+# Jenkins will write repo@sha256 digests here right before apply
+variable "service_images" {
+  description = "Map: service key -> ECR image URI with digest (e.g., ...@sha256:...)"
+  type        = map(string)
+  default     = {}
+}
+

@@ -8,7 +8,7 @@ RUN python -m pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copy app
-COPY src ./
+COPY . .
 
 # Handler module/function:
 # Matches Terraform handler_commands["insights"] = "handler.handler"

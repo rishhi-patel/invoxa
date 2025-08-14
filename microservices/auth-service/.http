@@ -25,6 +25,6 @@ Content-Type: application/json
 
 ###
 
-## VALIDATE token (replace {{TOKEN}} with the actual token from login)
+### VALIDATE token (replace {{TOKEN}} with the actual token from login)
 GET {{baseUrl}}/validate
 Authorization: Bearer {{TOKEN}}

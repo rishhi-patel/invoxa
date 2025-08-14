@@ -37,8 +37,15 @@ pipeline {
 						script {
 							def fetchRepo = { svc ->
 								def paramName = "/${env.ENVIRONMENT}/image_uris/${svc}"
-								def value = sh(returnStdout: true, label: "Get ${svc} repo uri", script: "aws ssm get-parameter --name '${paramName}' --query 'Parameter.Value' --output text").trim()
-								return value.contains(':') ? value.split(':')[0] : value
+								def status = sh(returnStatus: true, label: "Check ${svc} repo param", script: "aws ssm get-parameter --name '${paramName}' --query 'Parameter.Value' --output text >/dev/null 2>&1")
+								if (status == 0) {
+									def value = sh(returnStdout: true, label: "Get ${svc} repo uri", script: "aws ssm get-parameter --name '${paramName}' --query 'Parameter.Value' --output text").trim()
+									return value.contains(':') ? value.split(':')[0] : value
+								} else {
+									def fallback = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com/${env.PROJECT}-${env.ENVIRONMENT}-${svc}"
+									echo "[WARN] SSM parameter not found: ${paramName}. Using fallback: ${fallback}"
+									return fallback
+								}
 							}
 							env.AUTH_REPO     = fetchRepo('auth')
 							env.CLIENT_REPO   = fetchRepo('client')

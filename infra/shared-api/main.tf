@@ -33,21 +33,24 @@ data "aws_ssm_parameters_by_path" "lambda_envs" {
 }
 
 locals {
-  # Map<service, image_uri>
+  # Service keys from SSM parameter names (non-sensitive)
+  services = [
+    for full_name in data.aws_ssm_parameters_by_path.image_uris.names :
+    replace(full_name, "/${var.env}/image_uris/", "")
+  ]
+
+  # Map<service, image_uri> (may be marked sensitive by provider; unwrap where needed later)
   image_uris = {
     for full_name, value in zipmap(data.aws_ssm_parameters_by_path.image_uris.names, data.aws_ssm_parameters_by_path.image_uris.values) :
     replace(full_name, "/${var.env}/image_uris/", "") => value
   }
 
-  # Map<service, map<string,string>>
+  # Map<service, raw JSON string of env vars>; unwrap for jsondecode below
   lambda_envs_raw = {
     for full_name, value in zipmap(data.aws_ssm_parameters_by_path.lambda_envs.names, data.aws_ssm_parameters_by_path.lambda_envs.values) :
     replace(full_name, "/${var.env}/lambda_envs/", "") => value
   }
-  lambda_envs = { for k, v in local.lambda_envs_raw : k => try(jsondecode(v), {}) }
-
-  # Services derive from available image_uris
-  services = keys(local.image_uris)
+  lambda_envs = { for k, v in local.lambda_envs_raw : k => try(jsondecode(nonsensitive(v)), {}) }
 }
 
 # -------- Shared HTTP API (one for all services) --------
@@ -118,7 +121,7 @@ resource "aws_iam_role_policy_attachment" "cwlogs_attach" {
 
 # Lambda (container) per service
 resource "aws_lambda_function" "svc" {
-  for_each = var.create_lambdas ? local.image_uris : {}
+  for_each = var.create_lambdas ? nonsensitive(local.image_uris) : {}
 
   function_name = "${local.name_prefix}-${each.key}"
   role          = aws_iam_role.lambda[each.key].arn

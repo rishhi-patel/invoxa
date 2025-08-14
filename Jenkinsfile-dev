@@ -9,18 +9,18 @@ pipeline {
 
 	environment {
 		ENVIRONMENT = 'dev'
-		AWS_REGION = 'us-east-1'
+		AWS_REGION = 'eu-west-1'
 		AWS_CREDENTIALS_ID = 'aws-jenkins-credentials' // Jenkins AWS creds ID
 		LAMBDA_PREFIX = 'invoxa'                // Fallback prefix if TF outputs are unavailable
 		TF_DIR = 'infra/shared-api'             // Terraform directory
 		DOCKER_BUILD_PLATFORM = 'linux/amd64'   // Ensure linux/amd64 images compatible with Lambda
 
 		// ECR repositories without tags (set these in Jenkins or edit here)
-		AUTH_REPO = '857736875915.dkr.ecr.us-east-1.amazonaws.com/invoxa-dev-auth'
-		CLIENT_REPO = '857736875915.dkr.ecr.us-east-1.amazonaws.com/invoxa-dev-client'
-		INVOICE_REPO = '857736875915.dkr.ecr.us-east-1.amazonaws.com/invoxa-dev-invoice'
-		PAYMENT_REPO = '857736875915.dkr.ecr.us-east-1.amazonaws.com/invoxa-dev-payment'
-		INSIGHTS_REPO = '857736875915.dkr.ecr.us-east-1.amazonaws.com/invoxa-dev-insights'
+		AUTH_REPO = '857736875915.dkr.ecr.eu-west-1.amazonaws.com/invoxa-dev-auth'
+		CLIENT_REPO = '857736875915.dkr.ecr.eu-west-1.amazonaws.com/invoxa-dev-client'
+		INVOICE_REPO = '857736875915.dkr.ecr.eu-west-1.amazonaws.com/invoxa-dev-invoice'
+		PAYMENT_REPO = '857736875915.dkr.ecr.eu-west-1.amazonaws.com/invoxa-dev-payment'
+		INSIGHTS_REPO = '857736875915.dkr.ecr.eu-west-1.amazonaws.com/invoxa-dev-insights'
 	}
 
 	stages {

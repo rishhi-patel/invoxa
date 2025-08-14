@@ -65,6 +65,42 @@ export function useAuth(opts?: { autoHydrate?: boolean }) {
     [setUser, setToken]
   )
 
+  const register = useCallback(
+    async (email: string, password: string, name?: string) => {
+      setLoading(true)
+      try {
+        const res = await fetch("/api/auth/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, name }),
+        })
+        const data = await res.json()
+
+        console.log("Register response", { res, data })
+
+        if (!res.ok || !data.token)
+          throw new Error(data?.message || "Registration failed")
+
+        localStorage.setItem("auth_token", data.token)
+        setToken(data.token)
+
+        const me = await fetch("/api/auth/me", {
+          headers: { Authorization: `Bearer ${data.token}` },
+        }).then((r) => (r.ok ? r.json() : null))
+
+        if (me?.user) setUser(me.user as User)
+        toast.success("Registration successful 🎉")
+        return true
+      } catch (e: any) {
+        toast.error(e.message || "Registration failed")
+        return false
+      } finally {
+        setLoading(false)
+      }
+    },
+    [setUser, setToken]
+  )
+
   const logout = useCallback(() => {
     clear()
     toast.success("Logged out")
@@ -79,5 +115,6 @@ export function useAuth(opts?: { autoHydrate?: boolean }) {
     logout,
     setUser,
     isTokenValid,
+    register,
   }
 }

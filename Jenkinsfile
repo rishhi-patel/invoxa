@@ -17,25 +17,36 @@ pipeline {
         stage('Terraform Init & Plan') {
             steps {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-credentials']]) {
-                    sh """
-                    cd infra/shared-api
-                    terraform init \
-                      -backend-config="bucket=invoxa-tfstate-${AWS_ACCOUNT_ID}" \
-                      -backend-config="key=terraform.tfstate" \
-                      -backend-config="region=${TF_BACKEND_REGION}" \
-                      -backend-config="dynamodb_table=invoxa-terraform-locks"
-
-                    terraform plan -var-file=dev.ca.tfvars -detailed-exitcode -out=tfplan || exit_code=\$?
-                    exit \$exit_code
-                    """
-                }
-            }
-            post {
-                success {
                     script {
-                        def exitCode = sh(returnStatus: true, script: "cd infra/shared-api && terraform plan -var-file=dev.ca.tfvars -detailed-exitcode -out=tfplan")
-                        env.INFRA_CHANGED = (exitCode == 2) ? "true" : "false"
-                        currentBuild.description = env.INFRA_CHANGED == "true" ? "Infra changes detected" : "No infra changes"
+                        sh """
+                        cd infra/shared-api
+                        terraform init \
+                          -backend-config="bucket=invoxa-tfstate-${AWS_ACCOUNT_ID}" \
+                          -backend-config="key=terraform.tfstate" \
+                          -backend-config="region=${TF_BACKEND_REGION}" \
+                          -backend-config="dynamodb_table=invoxa-terraform-locks"
+                        """
+
+                        // Run terraform plan and capture exit code without failing
+                        def exitCode = sh(
+                            returnStatus: true,
+                            script: """
+                            cd infra/shared-api
+                            terraform plan -var-file=dev.ca.tfvars -detailed-exitcode -out=tfplan
+                            """
+                        )
+
+                        if (exitCode == 2) {
+                            echo "🔄 Infra changes detected"
+                            env.INFRA_CHANGED = "true"
+                            currentBuild.description = "Infra changes detected"
+                        } else if (exitCode == 0) {
+                            echo "✅ No infra changes"
+                            env.INFRA_CHANGED = "false"
+                            currentBuild.description = "No infra changes"
+                        } else {
+                            error("❌ Terraform plan failed with exit code ${exitCode}")
+                        }
                     }
                 }
             }

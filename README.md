@@ -1,4 +1,4 @@
-# 🚀 INVOXA – Microservices Platform
+# 🚀 [INVOXA – Microservices Platform](https://invoxa.systems)
 
 A modular, scalable, and cloud-ready **invoice-as-a-service** platform. INVOXA enables **authentication**, **client management**, **invoice generation**, **payments**, **notifications**, and **analytics** with a clean microservices architecture.
 
@@ -28,6 +28,19 @@ invoxa/
 
 ![alt text](image.png)
 
+## CI & CD (Jenkins)
+
+![1755214778255](image/README/1755214778255.png)
+![1755214789172](image/README/1755214789172.png)
+
+## BUILD & TEST
+
+![1755214799492](image/README/1755214799492.png)
+![1755214812276](image/README/1755214812276.png)
+
+## CLIENT
+
+![1755214820815](image/README/1755214820815.png)
 
 ## 🛠 Prerequisites
 

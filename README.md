@@ -24,6 +24,11 @@ invoxa/
 
 ---
 
+## Architecture Diagram
+
+![alt text](image-1.png)
+
+
 ## 🛠 Prerequisites
 
 Before running locally, ensure you have:

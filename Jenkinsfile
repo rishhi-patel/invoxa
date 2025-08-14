@@ -25,7 +25,7 @@ pipeline {
                       -backend-config="region=${TF_BACKEND_REGION}" \
                       -backend-config="dynamodb_table=invoxa-terraform-locks"
 
-                    terraform plan -detailed-exitcode -out=tfplan || exit_code=\$?
+                    terraform plan -var-file=dev.ca.tfvars -detailed-exitcode -out=tfplan || exit_code=\$?
                     exit \$exit_code
                     """
                 }
@@ -33,7 +33,7 @@ pipeline {
             post {
                 success {
                     script {
-                        def exitCode = sh(returnStatus: true, script: "cd infra/shared-api && terraform plan -detailed-exitcode -out=tfplan")
+                        def exitCode = sh(returnStatus: true, script: "cd infra/shared-api && terraform plan -var-file=dev.ca.tfvars -detailed-exitcode -out=tfplan")
                         env.INFRA_CHANGED = (exitCode == 2) ? "true" : "false"
                         currentBuild.description = env.INFRA_CHANGED == "true" ? "Infra changes detected" : "No infra changes"
                     }
@@ -49,7 +49,7 @@ pipeline {
                 withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-jenkins-credentials']]) {
                     sh """
                     cd infra/shared-api
-                    terraform apply -auto-approve tfplan
+                    terraform apply -var-file=dev.ca.tfvars -auto-approve tfplan
                     """
                 }
             }

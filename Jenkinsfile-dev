@@ -77,10 +77,9 @@ pipeline {
 				}
 			}
 
-			stage('Terraform Apply (manual)') {
+			stage('Terraform Apply') {
 				steps {
 					dir(env.TF_DIR) {
-						input message: 'Approve Terraform apply to DEV?', ok: 'Apply'
 						withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
 							withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}"]) {
 								sh label: 'Terraform apply', script: 'terraform apply -input=false -var-file="dev.tfvars" -auto-approve tfplan'
@@ -90,25 +89,12 @@ pipeline {
 				}
 			}
 
-			stage('Terraform Destroy (manual)') {
+			stage('Terraform Destroy') {
 				steps {
 					dir(env.TF_DIR) {
-						script {
-							def proceed = false
-							try {
-								timeout(time: 30, unit: 'SECONDS') {
-									input message: 'Destroy DEV infra? This is destructive.', ok: 'Destroy'
-								}
-								proceed = true
-							} catch (err) {
-								echo 'Destroy skipped (no approval).'
-							}
-							if (proceed) {
-								withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
-									withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}"]) {
-										sh label: 'Terraform destroy', script: 'terraform destroy -input=false -var-file="dev.tfvars" -auto-approve'
-									}
-								}
+						withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: env.AWS_CREDENTIALS_ID, accessKeyVariable: 'AWS_ACCESS_KEY_ID', secretKeyVariable: 'AWS_SECRET_ACCESS_KEY']]) {
+							withEnv(["AWS_DEFAULT_REGION=${env.AWS_REGION}"]) {
+								sh label: 'Terraform destroy', script: 'terraform destroy -input=false -var-file="dev.tfvars" -auto-approve'
 							}
 						}
 					}

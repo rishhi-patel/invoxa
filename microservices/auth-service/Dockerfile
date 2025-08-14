@@ -1,24 +1,21 @@
-FROM node:18
-# Build stage
-FROM node:18 AS builder
-
+# ---- build stage: Lambda Node.js 20 ----
+FROM public.ecr.aws/lambda/nodejs:20 AS build
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm ci --ignore-scripts
+COPY tsconfig.json ./
+COPY src ./src
 
-COPY . .
+RUN npm run build && npm prune --omit=dev
 
-RUN npm run build
+# ---- runtime: Lambda ----
+FROM public.ecr.aws/lambda/nodejs:20
+WORKDIR ${LAMBDA_TASK_ROOT}
 
-# Production stage
-FROM node:18-slim
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/package*.json ./
+COPY --from=build /app/node_modules ./node_modules
 
-WORKDIR /app
-
-COPY --from=builder /app/dist ./dist
-COPY package*.json ./
-RUN npm install --production
-
-EXPOSE 3000
-CMD ["npm", "start"]
+# IMPORTANT: your tsconfig outputs dist/src/...
+CMD [ "dist/src/handler.handler" ]

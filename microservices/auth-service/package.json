@@ -5,15 +5,41 @@
   "scripts": {
     "dev": "ts-node-dev --respawn src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "tsc && node dist/index.js",
+    "lambda": "node dist/src/handler.js",
+    "test": "jest --coverage"
   },
   "dependencies": {
-    "express": "^4.18.2"
+    "@types/helmet": "^4.0.0",
+    "@vendia/serverless-express": "^4.12.6",
+    "bcryptjs": "^3.0.2",
+    "chalk": "4.1.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
+    "express": "^4.18.2",
+    "helmet": "^6.0.1",
+    "jsonwebtoken": "^9.0.0",
+    "mongoose": "^7.0.3"
   },
   "devDependencies": {
+    "@babel/core": "^7.28.0",
+    "@babel/preset-env": "^7.28.0",
+    "@babel/preset-typescript": "^7.27.1",
+    "@types/bcrypt": "^5.0.0",
+    "@types/bcryptjs": "^3.0.0",
+    "@types/cors": "^2.8.19",
     "@types/express": "^4.17.17",
-    "@types/node": "^18.15.11",
+    "@types/jest": "^29.5.2",
+    "@types/jsonwebtoken": "^9.0.2",
+    "@types/node": "^20.2.3",
+    "@types/supertest": "^6.0.3",
+    "babel-jest": "^30.0.5",
+    "jest": "^29.5.0",
+    "mongodb-memory-server": "^10.1.4",
+    "supertest": "^6.3.3",
+    "ts-jest": "^29.1.0",
+    "ts-node": "^10.9.1",
     "ts-node-dev": "^2.0.0",
-    "typescript": "^5.0.0"
+    "typescript": "^5.1.3"
   }
 }

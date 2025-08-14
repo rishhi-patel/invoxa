@@ -1,0 +1,46 @@
+@BASE_URL = https://zxlnv1v3xb.execute-api.us-east-1.amazonaws.com/api/client
+# @BASE_URL = http://localhost:3001
+
+### Health check
+GET {{BASE_URL}}/health
+Authorization: Bearer {{TOKEN}}
+
+@TOKEN= eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4OTUwZDU1OTAyY2MzZTdlYWJhNzQ5NyIsImVtYWlsIjoicmlzaGhpQGV4YW1wbGUxLmNvbSIsImlhdCI6MTc1NTE0OTQyOH0.L2iIxqEW7yzyF19rJoEya_FOwonKcnR7j0Hp8fB5fkA
+
+### Create a new client
+POST {{BASE_URL}}/
+Content-Type: application/json
+Authorization: Bearer {{TOKEN}}
+
+{
+  "name": "Rishhi Patel",
+  "email": "rishhi@exocodelabs.dev",
+  "company": "EXOcode Labs",
+  "phone": "+1-555-123-4567"
+}
+
+### Get all clients
+GET {{BASE_URL}}/
+Authorization: Bearer {{TOKEN}}
+
+@client_id = 171438b5-57d3-455e-98b4-59734d013828
+
+### Get a single client by ID
+GET {{BASE_URL}}/api/client/{{client_id}}
+Authorization: Bearer {{TOKEN}}
+
+### Update a client
+PUT {{BASE_URL}}/api/client/{{client_id}}
+Content-Type: application/json
+Authorization: Bearer {{TOKEN}}
+
+{
+  "name": "Rishhi Exo",
+  "email": "founder@exocodelabs.dev",
+  "company": "EXOcode Studios",
+  "phone": "+1-555-765-4321"
+}
+
+### Delete a client
+DELETE {{BASE_URL}}/api/client/{{client_id}}
+Authorization: Bearer {{TOKEN}}

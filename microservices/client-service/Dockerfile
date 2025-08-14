@@ -1,20 +1,21 @@
-# Use official Python image
-FROM python:3.11-slim
-
-# Set working directory
+# ---- build stage: Lambda Node.js 20 ----
+FROM public.ecr.aws/lambda/nodejs:20 AS build
 WORKDIR /app
 
-# Copy requirements file
-COPY requirements.txt .
+COPY package*.json ./
+RUN npm ci --ignore-scripts
+COPY tsconfig.json ./
+COPY src ./src
 
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN npm run build && npm prune --omit=dev
 
-# Copy application code
-COPY . .
+# ---- runtime: Lambda ----
+FROM public.ecr.aws/lambda/nodejs:20
+WORKDIR ${LAMBDA_TASK_ROOT}
 
-# Set environment variable for Flask
-ENV FLASK_APP=app.py
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/package*.json ./
+COPY --from=build /app/node_modules ./node_modules
 
-# Run the Flask app
-CMD ["flask", "run", "--host=0.0.0.0"]
+# IMPORTANT: your tsconfig outputs dist/src/...
+CMD [ "dist/src/handler.handler" ]

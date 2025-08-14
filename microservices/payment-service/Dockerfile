@@ -1,20 +1,15 @@
-# Use official Python image
-FROM python:3.11-slim
+FROM public.ecr.aws/lambda/python:3.11
+WORKDIR ${LAMBDA_TASK_ROOT}
 
-# Set working directory
-WORKDIR /app
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONPATH="${LAMBDA_TASK_ROOT}:${LAMBDA_TASK_ROOT}/src"
 
-# Copy requirements file
 COPY requirements.txt .
+RUN python -m pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-# Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# all files are already here, no nested src/
+COPY . ./
 
-# Copy application code
-COPY . .
-
-# Set environment variable for Flask
-ENV FLASK_APP=app.py
-
-# Run the Flask app
-CMD ["flask", "run", "--host=0.0.0.0"]
+CMD ["handler.handler"]

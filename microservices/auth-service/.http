@@ -1,0 +1,30 @@
+@baseUrl = https://upweawzpa0.execute-api.us-east-1.amazonaws.com/api/auth
+# @baseUrl =http://localhost:3002/api/auth
+@TOKEN= eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4OTUwZDU1OTAyY2MzZTdlYWJhNzQ5NyIsImVtYWlsIjoicmlzaGhpQGV4YW1wbGUxLmNvbSIsImlhdCI6MTc1NDU5OTI0Nn0.YQ8soDNBIhFuI-0U0b-7F3HIDau_O7UTRg_Vwe-my9k
+
+### REGISTER a new user
+POST {{baseUrl}}/register
+Content-Type: application/json
+
+{
+    "name": "Rishikumar",
+    "email": "rishhi@example1.com",
+    "password": "supersecret"
+}
+
+###
+
+### LOGIN to get JWT
+POST {{baseUrl}}/login
+Content-Type: application/json
+
+{
+    "email": "rishhi@example1.com",
+    "password": "supersecret"
+}
+
+###
+
+### VALIDATE token (replace {{TOKEN}} with the actual token from login)
+GET {{baseUrl}}/validate
+Authorization: Bearer {{TOKEN}}

@@ -1,1 +1,3 @@
 flask
+flask-cors==4.0.1
+aws-wsgi==0.2.7

@@ -1,0 +1,134 @@
+@base = http://localhost:3000
+
+### ─────────────── AUTH ───────────────
+
+### REGISTER (optional)
+### @name register
+POST {{base}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "rishhi+smoke@example.com",
+  "password": "SuperStrong#123"
+}
+
+### LOGIN — capture token from response
+### @name login
+POST {{base}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "rishhi+smoke@example.com",
+  "password": "SuperStrong#123"
+}
+
+
+
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4OWE2MzEwNzIyYmUwZTNlMWY1Njc3MSIsImVtYWlsIjoicmlzaGhpK3Ntb2tlQGV4YW1wbGUuY29tIiwiaWF0IjoxNzU0OTQ5MjIyfQ.fjzq3o_9lmhJWCsWTrcOC4NNKAm4SzBxf5ZhE4wn3dY
+
+### WHOAMI (auth check)
+GET {{base}}/api/auth/me
+Authorization: Bearer {{token}}
+
+
+### ─────────────── CLIENTS CRUD ───────────────
+
+### CREATE CLIENT
+### @name createClient
+POST {{base}}/api/client
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Smoke Test Client",
+  "email": "smoke.client@example.com",
+  "phone": "+1-555-987-6543",
+  "company": "EXOcode Labs"
+}
+
+@clientId = {{createClient.response.body.$._id}}
+
+### LIST CLIENTS
+GET {{base}}/api/client
+Authorization: Bearer {{token}}
+
+### GET CLIENT BY ID
+GET {{base}}/api/client/{{clientId}}
+Authorization: Bearer {{token}}
+
+### UPDATE CLIENT
+PUT {{base}}/api/client/{{clientId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Smoke Test Client (Updated)"
+}
+
+### DELETE CLIENT (optional)
+# DELETE {{base}}/api/client/{{clientId}}
+# Authorization: Bearer {{token}}
+
+
+### ─────────────── INVOICES CRUD ───────────────
+
+### CREATE INVOICE
+### @name createInvoice
+POST {{base}}/api/invoice
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "clientId": "{{clientId}}",
+  "number": "INV-SMOKE-001",
+  "items": [
+    { "name": "Test Service", "quantity": 2, "unitPrice": 100 }
+  ],
+  "currency": "USD",
+  "taxRate": 13,
+  "status": "SENT"
+}
+
+@invoiceId = {{createInvoice.response.body.$._id}}
+
+### LIST INVOICES
+GET {{base}}/api/invoice
+Authorization: Bearer {{token}}
+
+### GET INVOICE BY ID
+GET {{base}}/api/invoice/{{invoiceId}}
+Authorization: Bearer {{token}}
+
+### UPDATE INVOICE (mark as PAID)
+PUT {{base}}/api/invoice/{{invoiceId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "status": "PAID"
+}
+
+### DELETE INVOICE (optional)
+# DELETE {{base}}/api/invoice/{{invoiceId}}
+# Authorization: Bearer {{token}}
+
+
+### ─────────────── INSIGHTS ───────────────
+
+### SUMMARY CARDS
+GET {{base}}/api/insights/summary
+Authorization: Bearer {{token}}
+
+### REVENUE TRENDS
+GET {{base}}/api/insights/revenue-trends?months=3
+Authorization: Bearer {{token}}
+
+### RECENT ACTIVITY
+GET {{base}}/api/insights/recent-activity?limit=5
+Authorization: Bearer {{token}}
+
+
+### ─────────────── LOGOUT ───────────────
+
+POST {{base}}/api/auth/logout
+Authorization: Bearer {{token}}

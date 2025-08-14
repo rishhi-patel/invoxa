@@ -1,0 +1,28 @@
+@BASE_URL=https://zxlnv1v3xb.execute-api.us-east-1.amazonaws.com/api/insights
+
+@JWT_TOKEN= eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4OTUwZDU1OTAyY2MzZTdlYWJhNzQ5NyIsImVtYWlsIjoicmlzaGhpQGV4YW1wbGUxLmNvbSIsImlhdCI6MTc1NTE0OTQyOH0.L2iIxqEW7yzyF19rJoEya_FOwonKcnR7j0Hp8fB5fkA
+
+### Summary Cards
+GET {{BASE_URL}}/health
+Authorization: Bearer {{JWT_TOKEN}}
+Content-Type: application/json
+
+### Revenue Trends (last 6 months default)
+GET {{BASE_URL}}/revenue-trends
+Authorization: Bearer {{JWT_TOKEN}}
+Content-Type: application/json
+
+### Revenue Trends (custom months)
+GET {{BASE_URL}}/revenue-trends?months=3
+Authorization: Bearer {{JWT_TOKEN}}
+Content-Type: application/json
+
+### Recent Activity (default limit 10)
+GET {{BASE_URL}}/recent-activity
+Authorization: Bearer {{JWT_TOKEN}}
+Content-Type: application/json
+
+### Recent Activity (limit 5)
+GET {{BASE_URL}}/recent-activity?limit=5
+Authorization: Bearer {{JWT_TOKEN}}
+Content-Type: application/json

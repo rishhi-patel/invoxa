@@ -1,6 +1,6 @@
 project = "invoxa"
 env     = "dev"
-region  = "ca-central-1"
+region  = "us-east-1"
 
 image_uris = {
   auth     = "857736875915.dkr.ecr.us-east-1.amazonaws.com/invoxa-dev-auth:latest"
